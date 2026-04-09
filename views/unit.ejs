@@ -1,0 +1,48 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<main class="container">
+  <div class="breadcrumb">
+    <a href="/courses">courses</a> / <a href="/courses/<%= course.slug %>"><%= course.title %></a> / <span>Unit <%= unitIndex + 1 %></span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <span class="unit-label">Unit <%= unitIndex + 1 %></span>
+      <h1><%= unit.title %></h1>
+    </div>
+  </div>
+
+  <% if (unit.overview) { %>
+    <div class="overview-card fade-in">
+      <h2>Overview</h2>
+      <div class="overview-content"><%- unit.overview.replace(/\n/g, '<br>') %></div>
+    </div>
+  <% } %>
+
+  <div class="sets-grid">
+    <% unit.problemSets.forEach((ps, si) => { %>
+      <% const prog = progressMap[ps._id.toString()]; %>
+      <a href="/courses/<%= course.slug %>/unit/<%= unitIndex %>/set/<%= si %>" class="set-card fade-in <%= prog && prog.completed ? 'set-done' : '' %>" style="animation-delay: <%= si * 0.06 %>s">
+        <div class="set-card-top">
+          <span class="set-type-badge <%= ps.type %>"><%= ps.type === 'exam' ? 'Exam' : 'Problem Set' %></span>
+          <% if (prog && prog.completed) { %>
+            <span class="check-mark">&#10003;</span>
+          <% } %>
+        </div>
+        <h3><%= ps.title %></h3>
+        <div class="set-card-meta">
+          <span><%= ps.questions.length %> question<%= ps.questions.length !== 1 ? 's' : '' %></span>
+          <% if (ps.timeLimit) { %>
+            <span><%= ps.timeLimit %> min</span>
+          <% } %>
+        </div>
+        <% if (prog && prog.timeSpent) { %>
+          <span class="time-spent"><%= Math.floor(prog.timeSpent / 60) %>m <%= prog.timeSpent % 60 %>s spent</span>
+        <% } %>
+      </a>
+    <% }) %>
+  </div>
+</main>
+
+<%- include('partials/foot') %>

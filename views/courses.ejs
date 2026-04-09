@@ -1,0 +1,76 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<main class="container">
+  <div class="page-header">
+    <h1>your courses</h1>
+    <button class="btn btn-secondary" onclick="showNewCourse()">+ new course</button>
+  </div>
+
+  <!-- New course modal -->
+  <div id="new-course-modal" class="modal hidden">
+    <div class="modal-content fade-in">
+      <h2>create course</h2>
+      <form id="new-course-form">
+        <input type="text" id="course-title" placeholder="course title (e.g. AP Physics C: Mechanics)" required>
+        <input type="text" id="course-desc" placeholder="short description">
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="hideNewCourse()">cancel</button>
+          <button type="submit" class="btn">create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <% if (courses.length === 0) { %>
+    <div class="empty-state fade-in">
+      <p>no courses yet. create one to get started.</p>
+    </div>
+  <% } else { %>
+    <div class="course-grid">
+      <% courses.forEach((course, i) => { %>
+        <a href="/courses/<%= course.slug %>" class="course-card fade-in" style="animation-delay: <%= i * 0.05 %>s">
+          <div class="course-card-inner">
+            <h2><%= course.title %></h2>
+            <% if (course.description) { %>
+              <p class="course-desc"><%= course.description %></p>
+            <% } %>
+            <div class="course-meta">
+              <span><%= course.units.length %> unit<%= course.units.length !== 1 ? 's' : '' %></span>
+              <span><%= course.totalSets %> set<%= course.totalSets !== 1 ? 's' : '' %></span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: <%= course.progress %>%"></div>
+            </div>
+            <span class="progress-label"><%= course.progress %>%</span>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</main>
+
+<script>
+function showNewCourse() {
+  document.getElementById('new-course-modal').classList.remove('hidden');
+}
+function hideNewCourse() {
+  document.getElementById('new-course-modal').classList.add('hidden');
+}
+
+document.getElementById('new-course-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = document.getElementById('course-title').value;
+  const description = document.getElementById('course-desc').value;
+  const res = await fetch('/api/courses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description })
+  });
+  const data = await res.json();
+  if (data.ok) window.location.href = '/courses/' + data.slug;
+  else alert(data.error);
+});
+</script>
+
+<%- include('partials/foot') %>

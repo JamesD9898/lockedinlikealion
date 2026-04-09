@@ -1,0 +1,11 @@
+<% if (user) { %>
+<nav>
+  <div class="nav-inner">
+    <a href="/courses" class="nav-brand">locked in like a lion</a>
+    <div class="nav-right">
+      <span class="nav-user"><%= user.username %></span>
+      <a href="/logout" class="nav-link">log out</a>
+    </div>
+  </div>
+</nav>
+<% } %>

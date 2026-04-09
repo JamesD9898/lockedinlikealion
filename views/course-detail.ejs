@@ -1,0 +1,60 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<main class="container">
+  <div class="breadcrumb">
+    <a href="/courses">courses</a> / <span><%= course.title %></span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1><%= course.title %></h1>
+      <% if (course.description) { %><p class="subtitle"><%= course.description %></p><% } %>
+    </div>
+    <div class="header-actions">
+      <a href="/courses/<%= course.slug %>/upload" class="btn btn-secondary">upload json</a>
+    </div>
+  </div>
+
+  <% if (course.units.length === 0) { %>
+    <div class="empty-state fade-in">
+      <p>no units yet. <a href="/courses/<%= course.slug %>/upload">upload some content</a> to get started.</p>
+    </div>
+  <% } else { %>
+    <div class="units-list">
+      <% course.units.forEach((unit, ui) => { %>
+        <div class="unit-card fade-in" style="animation-delay: <%= ui * 0.06 %>s">
+          <div class="unit-header">
+            <a href="/courses/<%= course.slug %>/unit/<%= ui %>">
+              <span class="unit-number">Unit <%= ui + 1 %></span>
+              <h2><%= unit.title %></h2>
+            </a>
+          </div>
+          <div class="sets-list">
+            <% unit.problemSets.forEach((ps, si) => { %>
+              <% const prog = progressMap[ps._id.toString()]; %>
+              <a href="/courses/<%= course.slug %>/unit/<%= ui %>/set/<%= si %>" class="set-item <%= prog && prog.completed ? 'set-done' : '' %>">
+                <div class="set-info">
+                  <span class="set-type-badge <%= ps.type %>"><%= ps.type === 'exam' ? 'exam' : 'set' %></span>
+                  <span class="set-title"><%= ps.title %></span>
+                  <% if (ps.timeLimit) { %>
+                    <span class="set-time"><%= ps.timeLimit %> min</span>
+                  <% } %>
+                </div>
+                <div class="set-status">
+                  <% if (prog && prog.completed) { %>
+                    <span class="check-mark">&#10003;</span>
+                  <% } else if (prog) { %>
+                    <span class="in-progress-dot"></span>
+                  <% } %>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</main>
+
+<%- include('partials/foot') %>

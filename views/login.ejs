@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+
+<div class="auth-page">
+  <div class="auth-box fade-in">
+    <h1 class="auth-title">locked in like a lion</h1>
+    <p class="auth-subtitle">
+      <% if (mode === 'login') { %>welcome back<% } else { %>join the pride<% } %>
+    </p>
+
+    <% if (error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+
+    <form method="POST" action="/<%= mode %>" class="auth-form">
+      <input type="text" name="username" placeholder="username" required autocomplete="username" autofocus>
+      <input type="password" name="password" placeholder="password" required autocomplete="<%= mode === 'register' ? 'new-password' : 'current-password' %>">
+      <button type="submit"><%= mode === 'login' ? 'log in' : 'sign up' %></button>
+    </form>
+
+    <p class="auth-switch">
+      <% if (mode === 'login') { %>
+        need an account? <a href="/register">sign up</a>
+      <% } else { %>
+        already have one? <a href="/">log in</a>
+      <% } %>
+    </p>
+  </div>
+</div>
+
+<%- include('partials/foot') %>

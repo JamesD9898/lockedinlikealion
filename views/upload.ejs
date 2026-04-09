@@ -1,0 +1,121 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<main class="container">
+  <div class="breadcrumb">
+    <a href="/courses">courses</a> / <a href="/courses/<%= course.slug %>"><%= course.title %></a> / <span>upload</span>
+  </div>
+
+  <div class="page-header">
+    <h1>upload content</h1>
+  </div>
+
+  <div class="upload-section fade-in">
+    <div class="upload-info">
+      <h3>json format</h3>
+      <pre class="json-example"><code>{
+  "units": [
+    {
+      "title": "Kinematics",
+      "order": 1,
+      "overview": "Motion in 1D and 2D...",
+      "problemSets": [
+        {
+          "title": "Free Response #1",
+          "type": "problem_set",
+          "timeLimit": 25,
+          "order": 1,
+          "questions": [
+            {
+              "number": 1,
+              "text": "A ball is thrown...",
+              "points": 15,
+              "parts": [
+                {
+                  "label": "(a)",
+                  "text": "Find the velocity...",
+                  "points": 5,
+                  "answer": "v = v₀ + at = ..."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}</code></pre>
+    </div>
+
+    <div class="upload-form">
+      <textarea id="json-input" placeholder="paste your json here..." rows="16"></textarea>
+      <div class="upload-actions">
+        <label class="btn btn-ghost file-label">
+          or load .json file
+          <input type="file" id="file-input" accept=".json" hidden>
+        </label>
+        <button class="btn" id="upload-btn" onclick="uploadJson()">upload</button>
+      </div>
+      <div id="upload-status" class="upload-status hidden"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  document.getElementById('file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      document.getElementById('json-input').value = ev.target.result;
+    };
+    reader.readAsText(file);
+  });
+
+  async function uploadJson() {
+    const input = document.getElementById('json-input').value.trim();
+    const status = document.getElementById('upload-status');
+    const btn = document.getElementById('upload-btn');
+
+    if (!input) {
+      status.textContent = 'paste some json first';
+      status.className = 'upload-status error';
+      return;
+    }
+
+    let data;
+    try {
+      data = JSON.parse(input);
+    } catch (e) {
+      status.textContent = 'invalid json: ' + e.message;
+      status.className = 'upload-status error';
+      return;
+    }
+
+    btn.textContent = 'uploading...';
+    btn.disabled = true;
+
+    const res = await fetch('/api/courses/<%= course.slug %>/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    if (result.ok) {
+      status.textContent = 'uploaded! ' + result.unitCount + ' units total';
+      status.className = 'upload-status success';
+      btn.textContent = 'done!';
+      setTimeout(() => {
+        window.location.href = '/courses/<%= course.slug %>';
+      }, 1000);
+    } else {
+      status.textContent = 'error: ' + result.error;
+      status.className = 'upload-status error';
+      btn.textContent = 'upload';
+      btn.disabled = false;
+    }
+  }
+</script>
+
+<%- include('partials/foot') %>
