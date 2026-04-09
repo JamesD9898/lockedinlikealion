@@ -1,0 +1,211 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<main class="container problem-set-page">
+  <div class="breadcrumb">
+    <a href="/courses">courses</a> /
+    <a href="/courses/<%= course.slug %>"><%= course.title %></a> /
+    <a href="/courses/<%= course.slug %>/unit/<%= unitIndex %>">Unit <%= unitIndex + 1 %></a> /
+    <span><%= problemSet.title %></span>
+  </div>
+
+  <div class="ps-header">
+    <div>
+      <span class="set-type-badge <%= problemSet.type %>"><%= problemSet.type === 'exam' ? 'Exam' : 'Problem Set' %></span>
+      <h1><%= problemSet.title %></h1>
+    </div>
+    <div class="ps-controls">
+      <div class="timer" id="timer">
+        <span id="timer-display">00:00</span>
+        <% if (problemSet.timeLimit) { %>
+          <span class="timer-limit">/ <%= problemSet.timeLimit %>:00</span>
+        <% } %>
+      </div>
+      <button class="btn btn-small btn-ghost" id="calc-toggle" onclick="toggleCalc()">calculator</button>
+    </div>
+  </div>
+
+  <!-- Desmos calculator drawer -->
+  <div id="calc-drawer" class="calc-drawer hidden">
+    <div id="desmos-calculator" style="width: 100%; height: 350px;"></div>
+  </div>
+
+  <div class="questions-list">
+    <% problemSet.questions.forEach((q, qi) => { %>
+      <div class="question-block fade-in" style="animation-delay: <%= qi * 0.04 %>s" id="q-<%= qi %>">
+        <div class="question-header">
+          <span class="q-number"><%= q.number || (qi + 1) %></span>
+          <% if (q.points) { %><span class="q-points"><%= q.points %> pt<%= q.points !== 1 ? 's' : '' %></span><% } %>
+        </div>
+
+        <% if (q.imageUrl) { %>
+          <img src="<%= q.imageUrl %>" alt="Question diagram" class="q-image">
+        <% } %>
+
+        <div class="q-text"><%= q.text %></div>
+
+        <% if (q.parts && q.parts.length > 0) { %>
+          <div class="q-parts">
+            <% q.parts.forEach((part, pi) => { %>
+              <div class="q-part">
+                <div class="part-label"><%= part.label || '(' + String.fromCharCode(97 + pi) + ')' %></div>
+                <div class="part-body">
+                  <p class="part-text"><%= part.text %></p>
+                  <% if (part.points) { %><span class="q-points"><%= part.points %> pt<%= part.points !== 1 ? 's' : '' %></span><% } %>
+                  <textarea class="answer-input" data-question="<%= q._id %>" data-part="<%= pi %>" placeholder="your answer..."><%= (progress && progress.answers.find(a => a.questionId && a.questionId.toString() === q._id.toString())) ? progress.answers.find(a => a.questionId.toString() === q._id.toString()).response : '' %></textarea>
+
+                  <div class="answer-reveal hidden" data-answer-for="<%= q._id %>-<%= pi %>">
+                    <div class="answer-label">Solution</div>
+                    <div class="answer-text"><%= part.answer %></div>
+                    <div class="self-grade" data-question="<%= q._id %>">
+                      <span>How'd you do?</span>
+                      <button class="grade-btn" data-grade="correct" onclick="selfGrade(this, '<%= q._id %>', 'correct')">nailed it</button>
+                      <button class="grade-btn" data-grade="partial" onclick="selfGrade(this, '<%= q._id %>', 'partial')">partial</button>
+                      <button class="grade-btn" data-grade="incorrect" onclick="selfGrade(this, '<%= q._id %>', 'incorrect')">missed it</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <textarea class="answer-input" data-question="<%= q._id %>" placeholder="your answer..."><%= (progress && progress.answers.find(a => a.questionId && a.questionId.toString() === q._id.toString())) ? progress.answers.find(a => a.questionId.toString() === q._id.toString()).response : '' %></textarea>
+
+          <div class="answer-reveal hidden" data-answer-for="<%= q._id %>">
+            <div class="answer-label">Solution</div>
+            <div class="answer-text"><%= q.answer %></div>
+            <div class="self-grade" data-question="<%= q._id %>">
+              <span>How'd you do?</span>
+              <button class="grade-btn" data-grade="correct" onclick="selfGrade(this, '<%= q._id %>', 'correct')">nailed it</button>
+              <button class="grade-btn" data-grade="partial" onclick="selfGrade(this, '<%= q._id %>', 'partial')">partial</button>
+              <button class="grade-btn" data-grade="incorrect" onclick="selfGrade(this, '<%= q._id %>', 'incorrect')">missed it</button>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+
+  <div class="ps-footer">
+    <button class="btn btn-secondary" id="show-answers-btn" onclick="showAnswers()">show solutions</button>
+    <button class="btn" id="submit-btn" onclick="submitAnswers()">save & finish</button>
+  </div>
+</main>
+
+<script>
+  const COURSE_ID = '<%= course._id %>';
+  const PS_ID = '<%= problemSet._id %>';
+  const TIME_LIMIT = <%= problemSet.timeLimit || 'null' %>;
+
+  // Timer
+  let seconds = <%= (progress && progress.timeSpent) ? progress.timeSpent : 0 %>;
+  let timerInterval;
+
+  function updateTimerDisplay() {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    document.getElementById('timer-display').textContent =
+      String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+
+    if (TIME_LIMIT && seconds >= TIME_LIMIT * 60) {
+      document.getElementById('timer').classList.add('timer-expired');
+    }
+  }
+
+  function startTimer() {
+    timerInterval = setInterval(() => {
+      seconds++;
+      updateTimerDisplay();
+    }, 1000);
+  }
+
+  updateTimerDisplay();
+  startTimer();
+
+  // Desmos
+  let calculator = null;
+  function toggleCalc() {
+    const drawer = document.getElementById('calc-drawer');
+    drawer.classList.toggle('hidden');
+    if (!calculator) {
+      const elt = document.getElementById('desmos-calculator');
+      calculator = Desmos.GraphingCalculator(elt, {
+        keypad: true,
+        expressions: true,
+        settingsMenu: false,
+        zoomButtons: true,
+        border: false,
+        expressionsTopbar: false
+      });
+    }
+  }
+
+  // Answers
+  function gatherAnswers() {
+    const answers = [];
+    document.querySelectorAll('.answer-input').forEach(ta => {
+      answers.push({
+        questionId: ta.dataset.question,
+        response: ta.value,
+        selfGrade: ta.closest('.question-block')?.querySelector('.grade-btn.active')?.dataset.grade || null
+      });
+    });
+    return answers;
+  }
+
+  function showAnswers() {
+    document.querySelectorAll('.answer-reveal').forEach(el => {
+      el.classList.remove('hidden');
+      el.classList.add('fade-in');
+    });
+    document.getElementById('show-answers-btn').style.display = 'none';
+  }
+
+  function selfGrade(btn, questionId, grade) {
+    const parent = btn.closest('.self-grade');
+    parent.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  async function submitAnswers() {
+    clearInterval(timerInterval);
+    const btn = document.getElementById('submit-btn');
+    btn.textContent = 'saving...';
+    btn.disabled = true;
+
+    await fetch('/api/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        courseId: COURSE_ID,
+        problemSetId: PS_ID,
+        answers: gatherAnswers(),
+        timeSpent: seconds,
+        completed: true
+      })
+    });
+
+    btn.textContent = 'done!';
+    btn.classList.add('btn-success');
+    setTimeout(() => {
+      window.history.back();
+    }, 800);
+  }
+
+  // Auto-save every 30s
+  setInterval(() => {
+    fetch('/api/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        courseId: COURSE_ID,
+        problemSetId: PS_ID,
+        answers: gatherAnswers(),
+        timeSpent: seconds,
+        completed: false
+      })
+    });
+  }, 30000);
+</script>
+
+<%- include('partials/foot') %>

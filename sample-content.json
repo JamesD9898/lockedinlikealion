@@ -1,0 +1,173 @@
+{
+  "units": [
+    {
+      "title": "Kinematics",
+      "order": 1,
+      "overview": "Motion in one and two dimensions. Position, velocity, and acceleration as functions of time. Motion in two dimensions (projectile motion, circular motion).\n\nKey equations:\n• x(t) = x₀ + v₀t + ½at²\n• v(t) = v₀ + at\n• v² = v₀² + 2a(x - x₀)\n• For projectiles: ax = 0, ay = -g\n• Circular motion: a_c = v²/r",
+      "problemSets": [
+        {
+          "title": "Kinematics Free Response #1",
+          "type": "problem_set",
+          "timeLimit": 25,
+          "order": 1,
+          "questions": [
+            {
+              "number": 1,
+              "text": "A ball is launched from ground level at an angle θ = 35° above the horizontal with an initial speed v₀ = 20 m/s. Ignore air resistance.",
+              "points": 15,
+              "parts": [
+                {
+                  "label": "(a)",
+                  "text": "Determine the horizontal and vertical components of the initial velocity.",
+                  "points": 3,
+                  "answer": "v₀ₓ = v₀ cos θ = 20 cos 35° = 16.4 m/s\nv₀ᵧ = v₀ sin θ = 20 sin 35° = 11.5 m/s"
+                },
+                {
+                  "label": "(b)",
+                  "text": "Calculate the maximum height reached by the ball.",
+                  "points": 4,
+                  "answer": "At max height, vᵧ = 0\nUsing v² = v₀² + 2aΔy:\n0 = (11.5)² + 2(-9.8)(Δy)\nΔy = 132.25 / 19.6 = 6.75 m"
+                },
+                {
+                  "label": "(c)",
+                  "text": "Calculate the total time of flight.",
+                  "points": 4,
+                  "answer": "Using y = v₀ᵧt + ½at²:\n0 = 11.5t - 4.9t²\nt(11.5 - 4.9t) = 0\nt = 11.5/4.9 = 2.35 s"
+                },
+                {
+                  "label": "(d)",
+                  "text": "Determine the horizontal range of the ball.",
+                  "points": 4,
+                  "answer": "R = v₀ₓ × t = 16.4 × 2.35 = 38.5 m\n\nAlternatively: R = (v₀² sin 2θ)/g = (400 × sin 70°)/9.8 = 38.3 m"
+                }
+              ]
+            },
+            {
+              "number": 2,
+              "text": "A car travels along a straight road. Its position as a function of time is given by x(t) = 2t³ - 9t² + 12t, where x is in meters and t is in seconds.",
+              "points": 15,
+              "parts": [
+                {
+                  "label": "(a)",
+                  "text": "Find expressions for the velocity v(t) and acceleration a(t).",
+                  "points": 4,
+                  "answer": "v(t) = dx/dt = 6t² - 18t + 12 m/s\na(t) = dv/dt = 12t - 18 m/s²"
+                },
+                {
+                  "label": "(b)",
+                  "text": "At what times is the car momentarily at rest?",
+                  "points": 4,
+                  "answer": "Set v(t) = 0:\n6t² - 18t + 12 = 0\nt² - 3t + 2 = 0\n(t - 1)(t - 2) = 0\nt = 1 s and t = 2 s"
+                },
+                {
+                  "label": "(c)",
+                  "text": "Find the position of the car at each time it is at rest.",
+                  "points": 3,
+                  "answer": "x(1) = 2(1) - 9(1) + 12(1) = 5 m\nx(2) = 2(8) - 9(4) + 12(2) = 16 - 36 + 24 = 4 m"
+                },
+                {
+                  "label": "(d)",
+                  "text": "Determine the total distance traveled by the car from t = 0 to t = 3 s.",
+                  "points": 4,
+                  "answer": "x(0) = 0 m, x(1) = 5 m, x(2) = 4 m, x(3) = 2(27) - 9(9) + 12(3) = 54 - 81 + 36 = 9 m\n\nCar moves: 0→5 (5m), 5→4 (1m), 4→9 (5m)\nTotal distance = 5 + 1 + 5 = 11 m"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Newton's Laws of Motion",
+      "order": 2,
+      "overview": "Newton's three laws. Free-body diagrams. Friction (static and kinetic). Circular motion and centripetal forces. Drag forces.\n\nKey concepts:\n• ΣF = ma (Newton's Second Law in component form)\n• Static friction: f_s ≤ μ_s N\n• Kinetic friction: f_k = μ_k N\n• Centripetal force: F_c = mv²/r\n• Always draw free-body diagrams first",
+      "problemSets": [
+        {
+          "title": "Newton's Laws Free Response #1",
+          "type": "problem_set",
+          "timeLimit": 25,
+          "order": 1,
+          "questions": [
+            {
+              "number": 1,
+              "text": "Two blocks are connected by a light string over a frictionless pulley (Atwood machine). Block A has mass m_A = 4 kg and block B has mass m_B = 6 kg.",
+              "points": 15,
+              "parts": [
+                {
+                  "label": "(a)",
+                  "text": "Draw free-body diagrams for each block.",
+                  "points": 3,
+                  "answer": "Block A: Weight m_A·g downward, Tension T upward\nBlock B: Weight m_B·g downward, Tension T upward\n\nSince m_B > m_A, block B accelerates downward and block A accelerates upward."
+                },
+                {
+                  "label": "(b)",
+                  "text": "Derive an expression for the acceleration of the system in terms of m_A, m_B, and g.",
+                  "points": 5,
+                  "answer": "For block A (up is positive): T - m_A·g = m_A·a\nFor block B (down is positive): m_B·g - T = m_B·a\n\nAdding both equations:\nm_B·g - m_A·g = (m_A + m_B)·a\n\na = (m_B - m_A)·g / (m_A + m_B)"
+                },
+                {
+                  "label": "(c)",
+                  "text": "Calculate the numerical value of the acceleration.",
+                  "points": 3,
+                  "answer": "a = (6 - 4)(9.8) / (4 + 6)\na = 2(9.8) / 10\na = 1.96 m/s²"
+                },
+                {
+                  "label": "(d)",
+                  "text": "Find the tension in the string.",
+                  "points": 4,
+                  "answer": "Using block A equation:\nT = m_A(g + a) = 4(9.8 + 1.96) = 4(11.76) = 47.04 N\n\nOr using the derived formula:\nT = 2·m_A·m_B·g / (m_A + m_B) = 2(4)(6)(9.8)/10 = 47.04 N"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Work, Energy, and Power",
+      "order": 3,
+      "overview": "Work done by constant and variable forces. Kinetic energy and the work-energy theorem. Potential energy (gravitational and elastic). Conservation of energy. Power.\n\nKey equations:\n• W = F·d·cos θ (constant force)\n• W = ∫F·dx (variable force)\n• KE = ½mv²\n• Work-Energy Theorem: W_net = ΔKE\n• U_g = mgh, U_s = ½kx²\n• P = dW/dt = F·v",
+      "problemSets": [
+        {
+          "title": "Energy Free Response #1",
+          "type": "problem_set",
+          "timeLimit": 25,
+          "order": 1,
+          "questions": [
+            {
+              "number": 1,
+              "text": "A 2 kg block slides down a frictionless ramp of height h = 3 m and then across a rough horizontal surface where μ_k = 0.4.",
+              "points": 15,
+              "parts": [
+                {
+                  "label": "(a)",
+                  "text": "Find the speed of the block at the bottom of the ramp using energy conservation.",
+                  "points": 4,
+                  "answer": "Using conservation of energy (no friction on ramp):\nmgh = ½mv²\nv = √(2gh) = √(2 × 9.8 × 3) = √58.8 = 7.67 m/s"
+                },
+                {
+                  "label": "(b)",
+                  "text": "Determine the friction force on the block as it slides across the horizontal surface.",
+                  "points": 3,
+                  "answer": "On horizontal surface: N = mg = 2(9.8) = 19.6 N\nf_k = μ_k · N = 0.4 × 19.6 = 7.84 N"
+                },
+                {
+                  "label": "(c)",
+                  "text": "How far does the block slide on the horizontal surface before stopping?",
+                  "points": 4,
+                  "answer": "Using work-energy theorem:\n-f_k · d = 0 - ½mv²\nd = mv² / (2f_k) = 2(58.8) / (2 × 7.84) = 7.5 m\n\nOr equivalently: mgh = f_k · d → d = mgh/(μ_k mg) = h/μ_k = 3/0.4 = 7.5 m"
+                },
+                {
+                  "label": "(d)",
+                  "text": "Calculate the power dissipated by friction at the instant the block reaches the horizontal surface.",
+                  "points": 4,
+                  "answer": "P = f_k · v = 7.84 × 7.67 = 60.1 W"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
