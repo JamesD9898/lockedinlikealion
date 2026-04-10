@@ -12,7 +12,31 @@
       <% if (course.description) { %><p class="subtitle"><%= course.description %></p><% } %>
     </div>
     <div class="header-actions">
+      <% if (course.units.length > 0) { %>
+        <a href="/courses/<%= course.slug %>/notes" class="btn btn-secondary">notes</a>
+        <button class="btn btn-secondary" onclick="showPracticeModal()">practice</button>
+      <% } %>
       <a href="/courses/<%= course.slug %>/upload" class="btn btn-secondary">upload json</a>
+    </div>
+  </div>
+
+  <!-- Practice modal -->
+  <div id="practice-modal" class="modal hidden">
+    <div class="modal-content fade-in">
+      <h2>practice session</h2>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">pick units to pull questions from (or leave all checked for everything)</p>
+      <div id="unit-checkboxes" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.2rem;">
+        <% course.units.forEach((unit, ui) => { %>
+          <label style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;cursor:pointer;">
+            <input type="checkbox" name="unit" value="<%= ui %>" checked style="accent-color:var(--accent)">
+            Unit <%= ui + 1 %> — <%= unit.title %>
+          </label>
+        <% }) %>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="hidePracticeModal()">cancel</button>
+        <button type="button" class="btn" onclick="startPractice()">start</button>
+      </div>
     </div>
   </div>
 
@@ -56,5 +80,19 @@
     </div>
   <% } %>
 </main>
+
+<script>
+function showPracticeModal() {
+  document.getElementById('practice-modal').classList.remove('hidden');
+}
+function hidePracticeModal() {
+  document.getElementById('practice-modal').classList.add('hidden');
+}
+function startPractice() {
+  const checked = Array.from(document.querySelectorAll('input[name="unit"]:checked')).map(el => el.value);
+  if (checked.length === 0) return alert('select at least one unit');
+  window.location.href = '/courses/<%= course.slug %>/practice?units=' + checked.join(',');
+}
+</script>
 
 <%- include('partials/foot') %>
