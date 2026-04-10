@@ -1,0 +1,110 @@
+<%- include('partials/head', { title: 'Notes' }) %>
+<%- include('partials/nav') %>
+
+<main class="container notes-page">
+
+  <div class="breadcrumb">
+    <a href="/courses">courses</a> / <a href="/courses/<%= course.slug %>"><%= course.title %></a> / <span>notes</span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1>your notes</h1>
+      <p class="subtitle"><%= course.title %> — all problems</p>
+    </div>
+    <div class="notes-filter">
+      <button class="notes-filter-btn active" data-filter="all" onclick="filterNotes('all')">all</button>
+      <button class="notes-filter-btn" data-filter="has-notes" onclick="filterNotes('has-notes')">with notes</button>
+      <button class="notes-filter-btn" data-filter="correct" onclick="filterNotes('correct')">correct</button>
+      <button class="notes-filter-btn" data-filter="incorrect" onclick="filterNotes('incorrect')">incorrect</button>
+    </div>
+  </div>
+
+  <% if (allQuestions.length === 0) { %>
+    <div class="empty-state fade-in">
+      <p>no problems yet. <a href="/courses/<%= course.slug %>/upload">upload content</a> to get started.</p>
+    </div>
+  <% } else { %>
+
+    <!-- Group by unit -->
+    <%
+    const byUnit = {};
+    allQuestions.forEach(q => {
+      if (!byUnit[q.unitTitle]) byUnit[q.unitTitle] = [];
+      byUnit[q.unitTitle].push(q);
+    });
+    %>
+
+    <% Object.entries(byUnit).forEach(([unitTitle, questions]) => { %>
+    <div class="notes-unit-section fade-in">
+      <div class="notes-unit-header"><%= unitTitle %></div>
+      <div class="notes-grid" id="notes-grid">
+        <% questions.forEach((q, i) => { %>
+        <a href="<%= q.href %>"
+           class="note-card grade-<%= q.selfGrade || 'none' %>"
+           data-qid="<%= q.qId %>"
+           data-grade="<%= q.selfGrade || 'none' %>"
+           style="animation-delay: <%= i * 0.03 %>s">
+
+          <!-- Canvas thumbnail -->
+          <div class="note-canvas-wrap">
+            <canvas class="note-canvas" data-qid="<%= q.qId %>" width="280" height="160"></canvas>
+            <div class="note-canvas-empty">no notes yet</div>
+          </div>
+
+          <!-- Question info -->
+          <div class="note-card-body">
+            <div class="note-card-header">
+              <span class="note-q-num">Q<%= q.number %></span>
+              <span class="note-set-label"><%= q.setTitle %></span>
+              <% if (q.selfGrade) { %>
+              <span class="note-grade note-grade-<%= q.selfGrade %>"><%= q.selfGrade %></span>
+              <% } %>
+            </div>
+            <p class="note-q-text"><%= q.text ? q.text.substring(0, 100) + (q.text.length > 100 ? '...' : '') : '' %></p>
+          </div>
+        </a>
+        <% }) %>
+      </div>
+    </div>
+    <% }) %>
+
+  <% } %>
+</main>
+
+<script src="/js/whiteboard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Render all canvas thumbnails from localStorage
+  document.querySelectorAll('.note-canvas').forEach(canvas => {
+    const qId = canvas.dataset.qid;
+    if (!qId) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = canvas.offsetWidth  * dpr || 280 * dpr;
+    canvas.height = canvas.offsetHeight * dpr || 160 * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const hasContent = WB.renderThumbnail(canvas, qId);
+    if (hasContent) {
+      canvas.classList.add('has-content');
+      canvas.closest('.note-card').classList.add('has-notes');
+      canvas.closest('.note-card').querySelector('.note-canvas-empty').style.display = 'none';
+    }
+  });
+});
+
+function filterNotes(filter) {
+  document.querySelectorAll('.notes-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+  document.querySelectorAll('.note-card').forEach(card => {
+    let show = true;
+    if (filter === 'has-notes')  show = card.classList.contains('has-notes');
+    if (filter === 'correct')    show = card.dataset.grade === 'correct';
+    if (filter === 'incorrect')  show = card.dataset.grade === 'incorrect';
+    card.style.display = show ? '' : 'none';
+  });
+}
+</script>
+
+<%- include('partials/foot') %>
