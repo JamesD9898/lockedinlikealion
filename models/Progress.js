@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const answerSchema = new mongoose.Schema({
   questionId: mongoose.Schema.Types.ObjectId,
+  part: { type: Number, default: null },
   response: String,
   selfGrade: { type: String, enum: ['correct', 'partial', 'incorrect', null], default: null }
 });

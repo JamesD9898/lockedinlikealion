@@ -2237,3 +2237,282 @@ nav {
   .question-card { padding: 2rem 2.2rem; }
   .qcard-stem { font-size: 1.05rem; }
 }
+
+/* ════════════════════════════════════════════
+   ps-immersive fullscreen canvas layout
+   ════════════════════════════════════════════ */
+
+.ps-body.ps-immersive {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: #141416;
+}
+
+.ps-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  padding-top: max(0.4rem, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  font-family: var(--font);
+  font-size: 0.72rem;
+  background: #111113;
+  z-index: 60;
+}
+
+.ps-hud-back {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  flex-shrink: 0;
+}
+.ps-hud-back:hover { color: var(--accent); }
+
+.ps-hud-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.ps-hud-set {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.ps-hud-pos {
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ps-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.ps-hud-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  min-width: 48px;
+}
+.ps-hud-time.timer-expired { color: var(--red); }
+
+.ps-hud-btn {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ps-hud-btn:hover,
+.ps-hud-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ps-immersive-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.ps-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ps-canvas-shell {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+#wb-main-canvas {
+  display: block;
+  touch-action: none;
+}
+
+.wb-toolbar-floating {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  max-width: min(680px, calc(100vw - 1rem));
+  flex-wrap: wrap;
+  justify-content: center;
+  background: rgba(17, 17, 19, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.wb-toolbar-floating .wbc-tool {
+  font-size: 0.65rem;
+  text-transform: lowercase;
+}
+
+.ps-calc-drawer {
+  position: fixed;
+  top: 42px;
+  bottom: 52px;
+  right: 0;
+  width: 0;
+  max-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: #faf8f4;
+  display: flex;
+  flex-direction: column;
+  z-index: 45;
+  transition: width 0.22s ease, max-width 0.22s ease;
+}
+
+body.ps-calc-open .ps-calc-drawer {
+  width: min(360px, 92vw);
+  max-width: min(360px, 92vw);
+}
+
+.ps-calc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  background: #efede8;
+}
+
+.ps-calc-expand,
+.ps-calc-close {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ps-calc-close {
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0 0.35rem;
+}
+
+.ps-calc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ps-calc-drawer .desmos-host {
+  flex: 1;
+  min-height: 200px;
+}
+
+.ps-question-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+body.ps-question-open .ps-question-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.ps-question-panel-inner {
+  position: absolute;
+  top: 48px;
+  bottom: 56px;
+  left: 0.75rem;
+  right: 0.75rem;
+  max-width: 720px;
+  margin: 0 auto;
+  overflow-y: auto;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #1c1c1f;
+  border: 1px solid var(--border);
+}
+
+.ps-question-panel-inner .question-slide {
+  display: none;
+}
+.ps-question-panel-inner .question-slide.active {
+  display: block;
+}
+
+.qpart-active {
+  outline: 1px solid rgba(200, 164, 110, 0.45);
+  border-radius: 6px;
+  padding: 0.35rem;
+  margin: -0.35rem;
+}
+
+.ps-end-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.ps-end-screen.hidden {
+  display: none !important;
+}
+
+.desmos-modal-host {
+  flex: 1;
+  min-height: 0;
+}
+
+.ps-immersive-footer {
+  flex-shrink: 0;
+}
+
+.ps-immersive .ps-footer {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}

@@ -7,149 +7,95 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
-<body class="ps-body">
+<body class="ps-body ps-immersive">
 
-<!-- ══════════════════════════════════════════════
-     TOP BAR
-══════════════════════════════════════════════ -->
-<header class="ps-topbar">
+<header class="ps-hud">
   <a href="<%= typeof practiceMode !== 'undefined' && practiceMode
     ? '/courses/' + course.slug
-    : '/courses/' + course.slug + '/unit/' + unitIndex %>" class="ps-back">
-    ← <span class="ps-back-label"><%= course.title %><% if (typeof practiceMode === 'undefined' || !practiceMode) { %> · Unit <%= unitIndex + 1 %><% } %></span>
-  </a>
-  <div class="ps-topbar-title">
-    <span class="set-type-badge <%= problemSet.type %>"><%= problemSet.type === 'exam' ? 'Exam' : 'Problem Set' %></span>
-    <span><%= problemSet.title %></span>
+    : '/courses/' + course.slug + '/unit/' + unitIndex %>" class="ps-hud-back" title="back">←</a>
+  <div class="ps-hud-center">
+    <span class="ps-hud-set"><span class="set-type-badge <%= problemSet.type %>"><%= problemSet.type === 'exam' ? 'exam' : 'set' %></span> <%= problemSet.title %></span>
+    <span class="ps-hud-pos" id="ps-hud-pos">—</span>
   </div>
-  <div class="ps-topbar-right">
-    <div id="timer-display" class="ps-timer hidden">00:00</div>
-    <button class="ps-timer-btn" onclick="PSApp.toggleTimer()" title="Toggle timer">⏱</button>
+  <div class="ps-hud-right">
+    <span id="timer-display" class="ps-hud-time">00:00</span>
+    <button type="button" class="ps-hud-btn" id="btn-toggle-problem" onclick="PSApp.toggleQuestionPanel()">problem</button>
+    <button type="button" class="ps-hud-btn" id="btn-toggle-calc" onclick="PSApp.toggleCalc()">calc</button>
   </div>
 </header>
 
-<!-- ══════════════════════════════════════════════
-     MAIN SPLIT
-══════════════════════════════════════════════ -->
-<main class="ps-main" id="ps-main">
+<main class="ps-immersive-main">
+  <div class="ps-canvas-wrap" id="ps-canvas-wrap">
+    <div class="ps-canvas-shell" id="ps-canvas-shell">
+      <canvas id="wb-main-canvas" aria-label="scratch paper"></canvas>
+    </div>
+    <div class="wbc-toolbar wb-toolbar-floating" id="wb-main-toolbar">
+        <button class="wbc-tool active" data-tool="pen" title="pen">pen</button>
+        <button class="wbc-tool" data-tool="highlighter" title="highlighter">hl</button>
+        <button class="wbc-tool" data-tool="strike" title="strike">x</button>
+        <button class="wbc-tool" data-tool="eraser" title="eraser">erase</button>
+        <div class="wbc-divider"></div>
+        <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
+        <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e"></button>
+        <button class="wbc-swatch" data-color="#166534" style="background:#166534"></button>
+        <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c"></button>
+        <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8"></button>
+        <div class="wbc-divider"></div>
+        <button class="wbc-size" data-w="1">·</button>
+        <button class="wbc-size active" data-w="2">–</button>
+        <button class="wbc-size" data-w="4">━</button>
+        <div class="wbc-divider"></div>
+        <button class="wbc-action" data-wb-finger title="allow finger / mouse">touch</button>
+        <button class="wbc-action" data-wb-undo title="undo">undo</button>
+        <button class="wbc-action" data-wb-clear title="clear">clear</button>
+    </div>
+  </div>
 
-  <!-- ── Left: question slides ── -->
-  <div class="ps-question-col" id="ps-question-col">
+  <aside class="ps-calc-drawer" id="ps-calc-drawer" aria-hidden="true">
+    <div class="ps-calc-head">
+      <span>calculator</span>
+      <button type="button" class="ps-calc-expand" onclick="PSApp.expandCalc()" title="fullscreen">expand</button>
+      <button type="button" class="ps-calc-close" onclick="PSApp.toggleCalc()" title="close">×</button>
+    </div>
+    <div class="ps-calc-body" id="panel-calc">
+      <div id="desmos-container" class="desmos-host"></div>
+    </div>
+  </aside>
+</main>
 
+<div class="ps-question-panel" id="ps-question-panel" aria-hidden="true">
+  <div class="ps-question-panel-inner">
     <% problemSet.questions.forEach((q, qi) => { %>
-    <div class="question-slide" data-index="<%= qi %>" id="slide-<%= qi %>">
-
-      <div class="question-card">
+    <div class="question-slide ps-q-slide" data-index="<%= qi %>" id="slide-<%= qi %>">
+      <div class="question-card ps-q-card">
         <div class="qcard-header">
           <span class="qcard-num">Question <%= q.number || (qi + 1) %></span>
-          <div style="display:flex;align-items:center;gap:0.6rem;">
-            <% if (q.points) { %><span class="qcard-pts"><%= q.points %> pts</span><% } %>
-            <button class="focus-launch-btn" onclick="PSApp.enterFocus(<%= qi %>)" title="Fullscreen scratch sheet for this question">
-              ⛶ sheet
-            </button>
-          </div>
+          <% if (q.points) { %><span class="qcard-pts"><%= q.points %> pts</span><% } %>
         </div>
-
         <div class="qcard-stem katex-content"><%= q.text %></div>
-
         <% if (q.imageUrl) { %>
         <div class="qcard-image-wrap">
           <img src="<%= q.imageUrl %>" alt="Figure" class="qcard-image">
         </div>
         <% } %>
-
         <div class="qcard-answer-area">
           <% if (q.parts && q.parts.length > 0) { %>
             <% q.parts.forEach((part, pi) => { %>
-            <div class="qpart">
+            <div class="qpart" data-part-index="<%= pi %>">
               <div class="qpart-left">
                 <span class="qpart-label"><%= part.label || '(' + String.fromCharCode(97 + pi) + ')' %></span>
               </div>
               <div class="qpart-right">
                 <div class="qpart-text katex-content"><%= part.text %></div>
                 <% if (part.points) { %><span class="qpart-pts"><%= part.points %> pts</span><% } %>
-                <textarea class="answer-input" data-qid="<%= q._id %>" data-part="<%= pi %>" placeholder="type your answer…" rows="2">
-                </textarea>
-                <div class="part-scratch" data-wb-root data-wb-key="<%= q._id %>-p<%= pi %>">
-                  <div class="part-scratch-bar">
-                    <span class="part-scratch-title">scratch paper</span>
-                    <span class="wb-zoom-label part-scratch-zoom-pill">100%</span>
-                    <button type="button" class="part-scratch-icon-btn" data-wb-zoom-out title="zoom out">−</button>
-                    <button type="button" class="part-scratch-icon-btn" data-wb-zoom-in title="zoom in">+</button>
-                    <button type="button" class="part-scratch-text-btn" data-wb-expand aria-expanded="false">expand</button>
-                    <button type="button" class="part-scratch-text-btn" data-wb-fullscreen title="fullscreen sheet">⛶</button>
-                  </div>
-                  <div class="wbc-toolbar wbc-toolbar-compact">
-                    <button class="wbc-tool active" data-tool="pen" title="pen">✏</button>
-                    <button class="wbc-tool" data-tool="highlighter" title="highlighter">▨</button>
-                    <button class="wbc-tool" data-tool="strike" title="cross-out">✕</button>
-                    <button class="wbc-tool" data-tool="eraser" title="eraser">◻</button>
-                    <div class="wbc-divider"></div>
-                    <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
-                    <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" title="gold"></button>
-                    <button class="wbc-swatch" data-color="#166534" style="background:#166534" title="green"></button>
-                    <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c" title="red"></button>
-                    <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8" title="blue"></button>
-                    <div class="wbc-divider"></div>
-                    <button class="wbc-size" data-w="1" title="fine">·</button>
-                    <button class="wbc-size active" data-w="2" title="medium">–</button>
-                    <button class="wbc-size" data-w="4" title="thick">━</button>
-                    <div class="wbc-divider"></div>
-                    <button class="wbc-action" data-wb-finger title="finger drawing (off = pencil only)">touch</button>
-                    <button class="wbc-action" data-wb-undo title="undo">↩</button>
-                    <button class="wbc-action" data-wb-clear title="clear">⌫</button>
-                  </div>
-                  <div class="wb-pad-viewport">
-                    <div class="wb-pad-sheet">
-                      <canvas class="wb-pad-canvas" aria-label="scratch canvas"></canvas>
-                    </div>
-                  </div>
-                </div>
+                <textarea class="answer-input" data-qid="<%= q._id %>" data-part="<%= pi %>" placeholder="answer…" rows="2"></textarea>
               </div>
             </div>
             <% }) %>
           <% } else { %>
-            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="type your answer…" rows="3">
-            </textarea>
-            <div class="part-scratch" data-wb-root data-wb-key="<%= q._id %>-main">
-              <div class="part-scratch-bar">
-                <span class="part-scratch-title">scratch paper</span>
-                <span class="wb-zoom-label part-scratch-zoom-pill">100%</span>
-                <button type="button" class="part-scratch-icon-btn" data-wb-zoom-out title="zoom out">−</button>
-                <button type="button" class="part-scratch-icon-btn" data-wb-zoom-in title="zoom in">+</button>
-                <button type="button" class="part-scratch-text-btn" data-wb-expand aria-expanded="false">expand</button>
-                <button type="button" class="part-scratch-text-btn" data-wb-fullscreen title="fullscreen sheet">⛶</button>
-              </div>
-              <div class="wbc-toolbar wbc-toolbar-compact">
-                <button class="wbc-tool active" data-tool="pen" title="pen">✏</button>
-                <button class="wbc-tool" data-tool="highlighter" title="highlighter">▨</button>
-                <button class="wbc-tool" data-tool="strike" title="cross-out">✕</button>
-                <button class="wbc-tool" data-tool="eraser" title="eraser">◻</button>
-                <div class="wbc-divider"></div>
-                <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
-                <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" title="gold"></button>
-                <button class="wbc-swatch" data-color="#166534" style="background:#166534" title="green"></button>
-                <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c" title="red"></button>
-                <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8" title="blue"></button>
-                <div class="wbc-divider"></div>
-                <button class="wbc-size" data-w="1" title="fine">·</button>
-                <button class="wbc-size active" data-w="2" title="medium">–</button>
-                <button class="wbc-size" data-w="4" title="thick">━</button>
-                <div class="wbc-divider"></div>
-                <button class="wbc-action" data-wb-finger title="finger drawing (off = pencil only)">touch</button>
-                <button class="wbc-action" data-wb-undo title="undo">↩</button>
-                <button class="wbc-action" data-wb-clear title="clear">⌫</button>
-              </div>
-              <div class="wb-pad-viewport">
-                <div class="wb-pad-sheet">
-                  <canvas class="wb-pad-canvas" aria-label="scratch canvas"></canvas>
-                </div>
-              </div>
-            </div>
+            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="answer…" rows="3"></textarea>
           <% } %>
         </div>
-
-        <!-- Solution reveal -->
         <div class="qcard-solution hidden" id="sol-<%= qi %>">
           <div class="solution-divider"></div>
           <div class="solution-label">Solution</div>
@@ -165,64 +111,36 @@
           <% } %>
         </div>
       </div>
-
-      <!-- Action bar -->
       <div class="q-action-bar">
-        <button class="btn-reveal" id="reveal-btn-<%= qi %>" onclick="PSApp.reveal(<%= qi %>)">
-          reveal solution
-        </button>
+        <button class="btn-reveal" id="reveal-btn-<%= qi %>" onclick="PSApp.reveal(<%= qi %>)">reveal solution</button>
         <div class="grade-bar hidden" id="grade-bar-<%= qi %>">
-          <span class="grade-label">how'd you do?</span>
-          <button class="grade-btn" data-grade="correct"   onclick="PSApp.grade(<%= qi %>, 'correct')">nailed it</button>
-          <button class="grade-btn" data-grade="partial"   onclick="PSApp.grade(<%= qi %>, 'partial')">partial</button>
-          <button class="grade-btn" data-grade="incorrect" onclick="PSApp.grade(<%= qi %>, 'incorrect')">missed it</button>
+          <span class="grade-label">grade</span>
+          <button class="grade-btn" data-grade="correct" onclick="PSApp.grade(<%= qi %>, 'correct')">ok</button>
+          <button class="grade-btn" data-grade="partial" onclick="PSApp.grade(<%= qi %>, 'partial')">partial</button>
+          <button class="grade-btn" data-grade="incorrect" onclick="PSApp.grade(<%= qi %>, 'incorrect')">miss</button>
         </div>
       </div>
-
-    </div><!-- /question-slide -->
+    </div>
     <% }) %>
 
-    <!-- End screen -->
-    <div class="question-slide end-screen hidden" id="end-screen">
-      <div class="end-card">
-        <div class="end-title">done.</div>
-        <div class="end-time" id="end-time"></div>
-        <div class="end-grades" id="end-grades"></div>
-        <div class="end-breakdown" id="end-breakdown"></div>
-        <div class="end-actions">
-          <a href="/courses/<%= course.slug %><% if (typeof practiceMode === 'undefined' || !practiceMode) { %>/unit/<%= unitIndex %><% } %>" class="btn btn-ghost">back</a>
-          <a href="/courses/<%= course.slug %>/notes" class="btn btn-ghost">review notes</a>
-          <button class="btn" onclick="PSApp.restart()">try again</button>
-        </div>
-      </div>
+  </div>
+</div>
+
+<div class="ps-end-screen hidden" id="end-screen">
+  <div class="end-card">
+    <div class="end-title">done.</div>
+    <div class="end-time" id="end-time"></div>
+    <div class="end-grades" id="end-grades"></div>
+    <div class="end-breakdown" id="end-breakdown"></div>
+    <div class="end-actions">
+      <a href="/courses/<%= course.slug %><% if (typeof practiceMode === 'undefined' || !practiceMode) { %>/unit/<%= unitIndex %><% } %>" class="btn btn-ghost">back</a>
+      <a href="/courses/<%= course.slug %>/notes" class="btn btn-ghost">notes</a>
+      <button class="btn" onclick="PSApp.restart()">again</button>
     </div>
+  </div>
+</div>
 
-  </div><!-- /ps-question-col -->
-
-  <div class="ps-col-resizer" id="ps-col-resizer" title="drag to resize"></div>
-
-  <!-- ── Right: calculator ── -->
-  <div class="ps-tools-col" id="ps-tools-col">
-
-    <button class="tools-toggle" id="tools-toggle" onclick="PSApp.toggleTools()" title="Toggle panel">
-      <span id="tools-toggle-icon">›</span>
-    </button>
-
-    <div class="calc-panel-head">
-      <span class="calc-panel-title">calculator</span>
-      <button type="button" class="calc-expand-btn" onclick="PSApp.expandCalc()" title="large calculator">expand</button>
-    </div>
-    <div class="calc-panel-body" id="panel-calc">
-      <div id="desmos-container" class="desmos-host"></div>
-    </div>
-
-  </div><!-- /ps-tools-col -->
-</main>
-
-<!-- ══════════════════════════════════════════════
-     BOTTOM NAV
-══════════════════════════════════════════════ -->
-<footer class="ps-footer">
+<footer class="ps-footer ps-immersive-footer">
   <div class="ps-progress-dots" id="progress-dots">
     <% problemSet.questions.forEach((q, qi) => { %>
     <button class="pdot" data-index="<%= qi %>" id="pdot-<%= qi %>" onclick="PSApp.go(<%= qi %>)" title="Q<%= qi + 1 %>"></button>
@@ -238,71 +156,16 @@
   </div>
 </footer>
 
-<!-- ══════════════════════════════════════════════
-     FOCUS MODE OVERLAY
-     Full-screen canvas with question strip
-══════════════════════════════════════════════ -->
-<div id="focus-overlay" class="focus-overlay hidden">
-
-  <!-- Collapsed question reference at top -->
-  <div class="focus-strip" id="focus-strip">
-    <div class="focus-strip-inner">
-      <span class="focus-q-label" id="focus-q-label">Q1</span>
-      <div class="focus-q-text" id="focus-q-text"></div>
-    </div>
-    <div class="focus-strip-actions">
-      <button class="focus-reveal-btn" id="focus-reveal-btn" onclick="PSApp.revealFromFocus()">solution</button>
-      <button class="focus-done-btn" onclick="PSApp.exitFocus()">done ↙</button>
-    </div>
-  </div>
-
-  <!-- Full canvas -->
-  <div class="focus-canvas-wrap" id="focus-canvas-wrap">
-    <canvas id="wb-focus-canvas"></canvas>
-  </div>
-
-  <!-- Floating toolbar -->
-  <div class="focus-toolbar">
-    <button class="wbc-tool active" data-tool="pen" onclick="WB.setTool('pen');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">✏</button>
-    <button class="wbc-tool" data-tool="highlighter" onclick="WB.setTool('highlighter');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">▨</button>
-    <button class="wbc-tool" data-tool="strike" onclick="WB.setTool('strike');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">✕</button>
-    <button class="wbc-tool" data-tool="eraser" onclick="WB.setTool('eraser');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">◻</button>
-    <div class="wbc-divider"></div>
-    <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
-    <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
-    <button class="wbc-swatch" data-color="#166534" style="background:#166534" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
-    <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
-    <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
-    <div class="wbc-divider"></div>
-    <button class="wbc-size" data-w="1" onclick="WB.setWidth(1);document.querySelectorAll('.focus-toolbar .wbc-size').forEach(b=>b.classList.remove('active'));this.classList.add('active')">·</button>
-    <button class="wbc-size active" data-w="2" onclick="WB.setWidth(2);document.querySelectorAll('.focus-toolbar .wbc-size').forEach(b=>b.classList.remove('active'));this.classList.add('active')">–</button>
-    <button class="wbc-size" data-w="4" onclick="WB.setWidth(4);document.querySelectorAll('.focus-toolbar .wbc-size').forEach(b=>b.classList.remove('active'));this.classList.add('active')">━</button>
-    <div class="wbc-divider"></div>
-    <button class="wbc-action" onclick="WB.undo()">↩</button>
-    <button class="wbc-action" onclick="if(confirm('clear sheet?')) WB.clear()">⌫</button>
-    <div class="wbc-divider"></div>
-    <button class="ps-nav-btn" onclick="PSApp.prevFromFocus()">←</button>
-    <button class="ps-nav-btn" onclick="PSApp.nextFromFocus()">→</button>
-  </div>
-
-</div>
-
-<!-- ══════════════════════════════════════════════
-     DESMOS EXPAND MODAL
-══════════════════════════════════════════════ -->
 <div class="tool-modal hidden" id="calc-modal">
   <div class="tool-modal-inner">
     <div class="tool-modal-header">
       <span>calculator</span>
-      <button onclick="PSApp.collapseCalc()">close ×</button>
+      <button type="button" onclick="PSApp.collapseCalc()">close</button>
     </div>
-    <div id="desmos-modal-container" style="flex:1;min-height:0;"></div>
+    <div id="desmos-modal-container" class="desmos-modal-host"></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     DATA + SCRIPTS
-══════════════════════════════════════════════ -->
 <script>
 window.__PS = {
   courseId:  '<%= course._id %>',
@@ -312,6 +175,7 @@ window.__PS = {
   qIds:      [<%- problemSet.questions.map(q => JSON.stringify(String(q._id))).join(',') %>],
   qTexts:    [<%- problemSet.questions.map(q => JSON.stringify((q.text || '').substring(0, 120).replace(/\n/g, ' '))).join(',') %>],
   qNums:     [<%- problemSet.questions.map((q, i) => JSON.stringify(String(q.number || i + 1))).join(',') %>],
+  partsLayout: <%- JSON.stringify(problemSet.questions.map(q => (q.parts && q.parts.length) ? q.parts.length : 0)) %>,
   existing:  <%- JSON.stringify(progress ? { timeSpent: progress.timeSpent || 0, answers: progress.answers || [] } : null) %>
 };
 </script>
