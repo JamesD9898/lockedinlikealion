@@ -2243,6 +2243,7 @@ nav {
    ════════════════════════════════════════════ */
 
 .ps-body.ps-immersive {
+  --ps-calc-w: 320px;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -2332,9 +2333,20 @@ nav {
 .ps-immersive-main {
   flex: 1;
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.ps-main-workspace {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
   min-height: 0;
-  position: relative;
+  overscroll-behavior: none;
 }
 
 .ps-canvas-wrap {
@@ -2343,17 +2355,34 @@ nav {
   position: relative;
   display: flex;
   flex-direction: column;
+  background: #fbf9f4;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ps-canvas-shell {
   flex: 1;
   min-height: 0;
   position: relative;
+  background: #fbf9f4;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #wb-main-canvas {
   display: block;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  background: #fbf9f4;
 }
 
 .wb-toolbar-floating {
@@ -2381,24 +2410,52 @@ nav {
 }
 
 .ps-calc-drawer {
-  position: fixed;
-  top: 42px;
-  bottom: 52px;
-  right: 0;
+  position: relative;
+  flex-shrink: 0;
+  align-self: stretch;
   width: 0;
   max-width: 0;
+  min-height: 0;
   overflow: hidden;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid transparent;
   background: #faf8f4;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   z-index: 45;
-  transition: width 0.22s ease, max-width 0.22s ease;
+  transition: width 0.22s ease, max-width 0.22s ease, border-color 0.15s ease;
 }
 
 body.ps-calc-open .ps-calc-drawer {
-  width: min(360px, 92vw);
-  max-width: min(360px, 92vw);
+  width: var(--ps-calc-w, 320px);
+  max-width: min(var(--ps-calc-w, 320px), 92vw);
+  border-left-color: var(--border);
+}
+
+.ps-calc-drawer.ps-calc-dragging {
+  transition: none;
+}
+
+.ps-calc-resize-handle {
+  flex-shrink: 0;
+  width: 7px;
+  margin-left: -1px;
+  cursor: col-resize;
+  touch-action: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.02));
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ps-calc-resize-handle:hover {
+  background: rgba(200, 164, 110, 0.22);
+}
+
+.ps-calc-drawer-inner {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .ps-calc-head {
@@ -2444,43 +2501,70 @@ body.ps-calc-open .ps-calc-drawer {
   min-height: 200px;
 }
 
-.ps-question-panel {
-  position: fixed;
-  inset: 0;
-  z-index: 55;
-  background: rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s;
-  pointer-events: none;
-}
-
-body.ps-question-open .ps-question-panel {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-.ps-question-panel-inner {
-  position: absolute;
-  top: 48px;
-  bottom: 56px;
-  left: 0.75rem;
-  right: 0.75rem;
-  max-width: 720px;
-  margin: 0 auto;
+.ps-problem-strip {
+  flex-shrink: 0;
+  max-height: min(42vh, 420px);
   overflow-y: auto;
-  padding: 1rem;
-  border-radius: 8px;
-  background: #1c1c1f;
-  border: 1px solid var(--border);
+  overflow-x: hidden;
+  border-bottom: 1px solid var(--border);
+  background: #111113;
+  -webkit-overflow-scrolling: touch;
 }
 
-.ps-question-panel-inner .question-slide {
+.ps-problem-strip .ps-q-slide {
   display: none;
 }
-.ps-question-panel-inner .question-slide.active {
+.ps-problem-strip .ps-q-slide.active {
   display: block;
+}
+
+.ps-q-card-compact {
+  padding: 0.55rem 1rem 0.35rem;
+  border: none;
+  background: transparent;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.ps-problem-strip .qcard-header {
+  margin-bottom: 0.35rem;
+}
+
+.ps-problem-strip .qcard-stem {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin-bottom: 0.45rem;
+}
+
+.ps-problem-strip .qcard-image-wrap {
+  margin: 0.35rem 0;
+}
+.ps-problem-strip .qcard-image {
+  max-height: 140px;
+  width: auto;
+}
+
+.ps-problem-strip .qcard-answer-area {
+  margin-top: 0.25rem;
+}
+
+.ps-problem-strip .ps-q-slide.active .qpart:not(.qpart-active) {
+  display: none;
+}
+
+.ps-q-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 1rem 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.ps-q-actions .btn-reveal {
+  margin: 0;
 }
 
 .qpart-active {

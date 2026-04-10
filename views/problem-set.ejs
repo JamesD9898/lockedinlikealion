@@ -19,55 +19,17 @@
   </div>
   <div class="ps-hud-right">
     <span id="timer-display" class="ps-hud-time">00:00</span>
-    <button type="button" class="ps-hud-btn" id="btn-toggle-problem" onclick="PSApp.toggleQuestionPanel()">problem</button>
     <button type="button" class="ps-hud-btn" id="btn-toggle-calc" onclick="PSApp.toggleCalc()">calc</button>
   </div>
 </header>
 
-<main class="ps-immersive-main">
-  <div class="ps-canvas-wrap" id="ps-canvas-wrap">
-    <div class="ps-canvas-shell" id="ps-canvas-shell">
-      <canvas id="wb-main-canvas" aria-label="scratch paper"></canvas>
-    </div>
-    <div class="wbc-toolbar wb-toolbar-floating" id="wb-main-toolbar">
-        <button class="wbc-tool active" data-tool="pen" title="pen">pen</button>
-        <button class="wbc-tool" data-tool="highlighter" title="highlighter">hl</button>
-        <button class="wbc-tool" data-tool="strike" title="strike">x</button>
-        <button class="wbc-tool" data-tool="eraser" title="eraser">erase</button>
-        <div class="wbc-divider"></div>
-        <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
-        <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e"></button>
-        <button class="wbc-swatch" data-color="#166534" style="background:#166534"></button>
-        <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c"></button>
-        <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8"></button>
-        <div class="wbc-divider"></div>
-        <button class="wbc-size" data-w="1">·</button>
-        <button class="wbc-size active" data-w="2">–</button>
-        <button class="wbc-size" data-w="4">━</button>
-        <div class="wbc-divider"></div>
-        <button class="wbc-action" data-wb-finger title="allow finger / mouse">touch</button>
-        <button class="wbc-action" data-wb-undo title="undo">undo</button>
-        <button class="wbc-action" data-wb-clear title="clear">clear</button>
-    </div>
-  </div>
+<main class="ps-immersive-main" id="ps-immersive-main">
 
-  <aside class="ps-calc-drawer" id="ps-calc-drawer" aria-hidden="true">
-    <div class="ps-calc-head">
-      <span>calculator</span>
-      <button type="button" class="ps-calc-expand" onclick="PSApp.expandCalc()" title="fullscreen">expand</button>
-      <button type="button" class="ps-calc-close" onclick="PSApp.toggleCalc()" title="close">×</button>
-    </div>
-    <div class="ps-calc-body" id="panel-calc">
-      <div id="desmos-container" class="desmos-host"></div>
-    </div>
-  </aside>
-</main>
-
-<div class="ps-question-panel" id="ps-question-panel" aria-hidden="true">
-  <div class="ps-question-panel-inner">
+  <div class="ps-main-workspace" id="ps-main-workspace">
+  <div class="ps-problem-strip" id="ps-problem-strip">
     <% problemSet.questions.forEach((q, qi) => { %>
     <div class="question-slide ps-q-slide" data-index="<%= qi %>" id="slide-<%= qi %>">
-      <div class="question-card ps-q-card">
+      <div class="question-card ps-q-card ps-q-card-compact">
         <div class="qcard-header">
           <span class="qcard-num">Question <%= q.number || (qi + 1) %></span>
           <% if (q.points) { %><span class="qcard-pts"><%= q.points %> pts</span><% } %>
@@ -93,7 +55,7 @@
             </div>
             <% }) %>
           <% } else { %>
-            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="answer…" rows="3"></textarea>
+            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="answer…" rows="2"></textarea>
           <% } %>
         </div>
         <div class="qcard-solution hidden" id="sol-<%= qi %>">
@@ -111,8 +73,8 @@
           <% } %>
         </div>
       </div>
-      <div class="q-action-bar">
-        <button class="btn-reveal" id="reveal-btn-<%= qi %>" onclick="PSApp.reveal(<%= qi %>)">reveal solution</button>
+      <div class="q-action-bar ps-q-actions">
+        <button class="btn-reveal" id="reveal-btn-<%= qi %>" onclick="PSApp.reveal(<%= qi %>)">reveal answer</button>
         <div class="grade-bar hidden" id="grade-bar-<%= qi %>">
           <span class="grade-label">grade</span>
           <button class="grade-btn" data-grade="correct" onclick="PSApp.grade(<%= qi %>, 'correct')">ok</button>
@@ -122,9 +84,49 @@
       </div>
     </div>
     <% }) %>
-
   </div>
-</div>
+
+  <div class="ps-canvas-wrap" id="ps-canvas-wrap">
+    <div class="ps-canvas-shell" id="ps-canvas-shell">
+      <canvas id="wb-main-canvas" aria-label="scratch paper"></canvas>
+    </div>
+    <div class="wbc-toolbar wb-toolbar-floating" id="wb-main-toolbar">
+        <button class="wbc-tool active" data-tool="pen" title="pen">pen</button>
+        <button class="wbc-tool" data-tool="highlighter" title="highlighter">hl</button>
+        <button class="wbc-tool" data-tool="strike" title="strike">x</button>
+        <button class="wbc-tool" data-tool="eraser" title="eraser">erase</button>
+        <div class="wbc-divider"></div>
+        <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
+        <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e"></button>
+        <button class="wbc-swatch" data-color="#166534" style="background:#166534"></button>
+        <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c"></button>
+        <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8"></button>
+        <div class="wbc-divider"></div>
+        <button class="wbc-size" data-w="1">·</button>
+        <button class="wbc-size active" data-w="2">–</button>
+        <button class="wbc-size" data-w="4">━</button>
+        <div class="wbc-divider"></div>
+        <button class="wbc-action" data-wb-finger title="allow finger / mouse">touch</button>
+        <button class="wbc-action" data-wb-undo title="undo">undo</button>
+        <button class="wbc-action" data-wb-clear title="clear">clear</button>
+    </div>
+  </div>
+  </div>
+
+  <aside class="ps-calc-drawer" id="ps-calc-drawer" aria-hidden="true">
+    <div class="ps-calc-resize-handle" id="ps-calc-resize-handle" title="drag to resize"></div>
+    <div class="ps-calc-drawer-inner">
+      <div class="ps-calc-head">
+        <span>calculator</span>
+        <button type="button" class="ps-calc-expand" onclick="PSApp.expandCalc()" title="fullscreen">expand</button>
+        <button type="button" class="ps-calc-close" onclick="PSApp.toggleCalc()" title="close">×</button>
+      </div>
+      <div class="ps-calc-body" id="panel-calc">
+        <div id="desmos-container" class="desmos-host"></div>
+      </div>
+    </div>
+  </aside>
+</main>
 
 <div class="ps-end-screen hidden" id="end-screen">
   <div class="end-card">
@@ -147,9 +149,9 @@
     <% }) %>
   </div>
   <div class="ps-nav-center">
-    <button class="ps-nav-btn" id="btn-prev" onclick="PSApp.prev()">←</button>
+    <button type="button" class="ps-nav-btn" id="btn-prev" onclick="PSApp.prev()" title="previous part or question">←</button>
     <span class="ps-nav-pos" id="nav-pos">1 / <%= problemSet.questions.length %></span>
-    <button class="ps-nav-btn" id="btn-next" onclick="PSApp.next()">→</button>
+    <button type="button" class="ps-nav-btn" id="btn-next" onclick="PSApp.next()" title="next part or question">→</button>
   </div>
   <div class="ps-footer-right">
     <button class="btn btn-small btn-ghost" onclick="PSApp.finish()">finish</button>

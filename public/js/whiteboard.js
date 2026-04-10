@@ -1,6 +1,8 @@
 // whiteboard.js — single full-screen canvas, per-key localStorage, normalized strokes
 
 const WB = (() => {
+  const PAPER = '#fbf9f4';
+
   let canvas = null;
   let ctx = null;
   let container = null;
@@ -149,7 +151,7 @@ const WB = (() => {
     const w = logicalW;
     const h = logicalH;
     ctx.save();
-    ctx.fillStyle = '#fbf9f4';
+    ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = 'rgba(180, 175, 160, 0.1)';
     const dot = 14;
@@ -197,12 +199,16 @@ const WB = (() => {
   }
 
   function onDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.target !== canvas) return;
     e.preventDefault();
     if (!shouldDraw(e)) return;
+    if (drawing && pointerId != null) return;
 
     pointerId = e.pointerId;
-    canvas.setPointerCapture(e.pointerId);
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch (err) {}
     drawing = true;
 
     const pos = getCanvasCoords(e);
@@ -275,26 +281,25 @@ const WB = (() => {
     }
   }
 
-  function onMove(e) {
-    if (!drawing || !currentStroke || e.pointerId !== pointerId) return;
-    if (e.target !== canvas) return;
-    e.preventDefault();
-
+  function appendPointFromEvent(e) {
     const pts = currentStroke.pts;
     const pos = getCanvasCoords(e);
     const w = logicalW;
     const h = logicalH;
     pts.push([pos.x / w, pos.y / h, pos.p]);
+    return pos;
+  }
 
-    ctx.save();
-
+  function drawFromLastSegment() {
+    const pts = currentStroke.pts;
     if (tool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
       const prev = pts[pts.length - 2];
+      const pos = { x: pts[pts.length - 1][0] * logicalW, y: pts[pts.length - 1][1] * logicalH };
       ctx.lineWidth = getEraserRadius(baseWidth) * 2;
       ctx.lineCap = 'round';
-      ctx.moveTo(prev[0] * w, prev[1] * h);
+      ctx.moveTo(prev[0] * logicalW, prev[1] * logicalH);
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
     } else if (tool === 'highlighter') {
@@ -316,12 +321,31 @@ const WB = (() => {
       ctx.lineJoin = 'round';
       drawSegment(pts, false);
     }
+  }
+
+  function onMove(e) {
+    if (!drawing || !currentStroke || e.pointerId !== pointerId) return;
+    e.preventDefault();
+
+    const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
+    const toProcess = coalesced.length > 0 ? coalesced.concat([e]) : [e];
+
+    ctx.save();
+    for (const ev of toProcess) {
+      appendPointFromEvent(ev);
+      drawFromLastSegment();
+    }
     ctx.restore();
   }
 
-  function onUp() {
+  function onUp(e) {
+    if (e && e.pointerId !== pointerId) return;
     if (!drawing) return;
+    e && e.preventDefault();
     drawing = false;
+    try {
+      if (pointerId != null) canvas.releasePointerCapture(pointerId);
+    } catch (err) {}
     pointerId = null;
 
     if (currentStroke && currentStroke.pts.length > 0 && activeKey) {
@@ -334,9 +358,13 @@ const WB = (() => {
   function bindCanvas() {
     canvas.addEventListener('pointerdown', onDown, { passive: false });
     canvas.addEventListener('pointermove', onMove, { passive: false });
-    canvas.addEventListener('pointerup', onUp);
-    canvas.addEventListener('pointercancel', onUp);
+    canvas.addEventListener('pointerup', onUp, { passive: false });
+    canvas.addEventListener('pointercancel', onUp, { passive: false });
+    canvas.addEventListener('lostpointercapture', e => {
+      if (e.pointerId === pointerId && drawing) onUp(e);
+    });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('dragstart', e => e.preventDefault());
   }
 
   function syncToolbar() {
@@ -401,6 +429,7 @@ const WB = (() => {
     canvas.height = logicalH * dpr;
     canvas.style.width = logicalW + 'px';
     canvas.style.height = logicalH + 'px';
+    canvas.style.background = PAPER;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.lineCap = 'round';
@@ -413,8 +442,9 @@ const WB = (() => {
     canvas = document.getElementById(canvasId);
     container = document.getElementById(containerId);
     if (!canvas || !container) return;
-    ctx = canvas.getContext('2d', { willReadFrequently: false });
+    ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
     bindCanvas();
+    container.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
     wireToolbar();
     ro = new ResizeObserver(() => resize());
     ro.observe(container);

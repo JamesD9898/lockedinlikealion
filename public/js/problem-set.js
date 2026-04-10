@@ -10,7 +10,6 @@ const PSApp = (() => {
   let timerRunning = true;
   let timerInterval = null;
 
-  let questionPanelOpen = false;
   let calcOpen = false;
 
   let revealed = {};
@@ -18,6 +17,101 @@ const PSApp = (() => {
 
   let desmosCalc = null;
   let calcExpanded = false;
+
+  const CALC_W_STORAGE = 'ps-calc-sidebar-width';
+  const CALC_W_DEFAULT = 320;
+  const CALC_W_MIN = 200;
+
+  function calcSidebarMaxW() {
+    return Math.min(Math.floor(window.innerWidth * 0.72), 760);
+  }
+
+  function applyCalcSidebarWidth(px) {
+    const maxW = calcSidebarMaxW();
+    const w = Math.max(CALC_W_MIN, Math.min(maxW, Math.round(px)));
+    document.documentElement.style.setProperty('--ps-calc-w', w + 'px');
+    try {
+      localStorage.setItem(CALC_W_STORAGE, String(w));
+    } catch (e) {}
+    return w;
+  }
+
+  function loadCalcSidebarWidth() {
+    let w = CALC_W_DEFAULT;
+    try {
+      const s = localStorage.getItem(CALC_W_STORAGE);
+      if (s) w = parseFloat(s);
+    } catch (e) {}
+    applyCalcSidebarWidth(w);
+  }
+
+  function initCalcSidebarResize() {
+    loadCalcSidebarWidth();
+    const handle = document.getElementById('ps-calc-resize-handle');
+    const drawer = document.getElementById('ps-calc-drawer');
+    if (!handle || !drawer) return;
+
+    let dragging = false;
+    let startX = 0;
+    let startW = 0;
+    let dragPointerId = null;
+
+    function afterResize() {
+      if (desmosCalc) setTimeout(() => desmosCalc.resize(), 30);
+      if (typeof WB !== 'undefined' && WB.resize) requestAnimationFrame(() => WB.resize());
+    }
+
+    handle.addEventListener('pointerdown', e => {
+      if (!calcOpen) return;
+      e.preventDefault();
+      dragging = true;
+      dragPointerId = e.pointerId;
+      startX = e.clientX;
+      startW = drawer.getBoundingClientRect().width;
+      drawer.classList.add('ps-calc-dragging');
+      try {
+        handle.setPointerCapture(e.pointerId);
+      } catch (err) {}
+    });
+
+    handle.addEventListener('pointermove', e => {
+      if (!dragging || e.pointerId !== dragPointerId) return;
+      e.preventDefault();
+      const delta = startX - e.clientX;
+      applyCalcSidebarWidth(startW + delta);
+      afterResize();
+    });
+
+    handle.addEventListener('pointerup', e => {
+      if (!dragging || e.pointerId !== dragPointerId) return;
+      dragging = false;
+      dragPointerId = null;
+      drawer.classList.remove('ps-calc-dragging');
+      try {
+        handle.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+      afterResize();
+    });
+
+    handle.addEventListener('pointercancel', e => {
+      if (e.pointerId !== dragPointerId) return;
+      dragging = false;
+      dragPointerId = null;
+      drawer.classList.remove('ps-calc-dragging');
+      afterResize();
+    });
+
+    window.addEventListener(
+      'resize',
+      () => {
+        const raw = getComputedStyle(document.documentElement).getPropertyValue('--ps-calc-w');
+        const cur = parseFloat(raw) || CALC_W_DEFAULT;
+        applyCalcSidebarWidth(cur);
+        afterResize();
+      },
+      { passive: true }
+    );
+  }
 
   const DESMOS_OPTS = {
     keypad: true,
@@ -81,10 +175,6 @@ const PSApp = (() => {
     initDesmos();
     setTimeout(() => desmosCalc && desmosCalc.resize(), 150);
 
-    document.getElementById('ps-question-panel')?.addEventListener('click', e => {
-      if (e.target.id === 'ps-question-panel') toggleQuestionPanel();
-    });
-
     restoreAnswers();
     for (let i = 0; i < total; i++) {
       if (grades[i]) {
@@ -111,6 +201,8 @@ const PSApp = (() => {
 
     document.addEventListener('keydown', onKey);
     setInterval(autoSave, 30000);
+
+    initCalcSidebarResize();
   }
 
   function showSlide(idx) {
@@ -215,16 +307,6 @@ const PSApp = (() => {
     }
   }
 
-  function toggleQuestionPanel() {
-    questionPanelOpen = !questionPanelOpen;
-    document.body.classList.toggle('ps-question-open', questionPanelOpen);
-    const p = document.getElementById('ps-question-panel');
-    if (p) {
-      p.setAttribute('aria-hidden', questionPanelOpen ? 'false' : 'true');
-    }
-    document.getElementById('btn-toggle-problem')?.classList.toggle('active', questionPanelOpen);
-  }
-
   function toggleCalc() {
     calcOpen = !calcOpen;
     document.body.classList.toggle('ps-calc-open', calcOpen);
@@ -233,7 +315,17 @@ const PSApp = (() => {
     document.getElementById('btn-toggle-calc')?.classList.toggle('active', calcOpen);
     if (calcOpen) {
       initDesmos();
-      setTimeout(() => desmosCalc && desmosCalc.resize(), 80);
+      applyCalcSidebarWidth(
+        parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ps-calc-w')) || CALC_W_DEFAULT
+      );
+      setTimeout(() => {
+        desmosCalc && desmosCalc.resize();
+        if (typeof WB !== 'undefined' && WB.resize) WB.resize();
+      }, 80);
+    } else {
+      setTimeout(() => {
+        if (typeof WB !== 'undefined' && WB.resize) WB.resize();
+      }, 50);
     }
   }
 
@@ -263,7 +355,6 @@ const PSApp = (() => {
     if (e.key === '1') grade(current, 'correct');
     if (e.key === '2') grade(current, 'partial');
     if (e.key === '3') grade(current, 'incorrect');
-    if (e.key === 'p' || e.key === 'P') toggleQuestionPanel();
     if (e.key === 'c' || e.key === 'C') toggleCalc();
   }
 
@@ -343,7 +434,6 @@ const PSApp = (() => {
     if (typeof WB !== 'undefined') WB.saveToStorage();
     if (calcExpanded) collapseCalc();
     if (calcOpen) toggleCalc();
-    if (questionPanelOpen) toggleQuestionPanel();
 
     fetch('/api/progress', {
       method: 'POST',
@@ -410,7 +500,7 @@ const PSApp = (() => {
 
   return {
     init, go, prev, next, reveal, grade,
-    toggleQuestionPanel, toggleCalc, expandCalc, collapseCalc,
+    toggleCalc, expandCalc, collapseCalc,
     finish, restart
   };
 })();
