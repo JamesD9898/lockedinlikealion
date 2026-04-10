@@ -44,8 +44,8 @@
           <span class="qcard-num">Question <%= q.number || (qi + 1) %></span>
           <div style="display:flex;align-items:center;gap:0.6rem;">
             <% if (q.points) { %><span class="qcard-pts"><%= q.points %> pts</span><% } %>
-            <button class="focus-launch-btn" onclick="PSApp.enterFocus(<%= qi %>)" title="Expand canvas to solve">
-              ✏ solve
+            <button class="focus-launch-btn" onclick="PSApp.enterFocus(<%= qi %>)" title="Fullscreen scratch sheet for this question">
+              ⛶ sheet
             </button>
           </div>
         </div>
@@ -68,14 +68,84 @@
               <div class="qpart-right">
                 <div class="qpart-text katex-content"><%= part.text %></div>
                 <% if (part.points) { %><span class="qpart-pts"><%= part.points %> pts</span><% } %>
-                <textarea class="answer-input" data-qid="<%= q._id %>" data-part="<%= pi %>" placeholder="type notes here...  (draw on canvas →)" rows="2">
+                <textarea class="answer-input" data-qid="<%= q._id %>" data-part="<%= pi %>" placeholder="type your answer…" rows="2">
                 </textarea>
+                <div class="part-scratch" data-wb-root data-wb-key="<%= q._id %>-p<%= pi %>">
+                  <div class="part-scratch-bar">
+                    <span class="part-scratch-title">scratch paper</span>
+                    <span class="wb-zoom-label part-scratch-zoom-pill">100%</span>
+                    <button type="button" class="part-scratch-icon-btn" data-wb-zoom-out title="zoom out">−</button>
+                    <button type="button" class="part-scratch-icon-btn" data-wb-zoom-in title="zoom in">+</button>
+                    <button type="button" class="part-scratch-text-btn" data-wb-expand aria-expanded="false">expand</button>
+                    <button type="button" class="part-scratch-text-btn" data-wb-fullscreen title="fullscreen sheet">⛶</button>
+                  </div>
+                  <div class="wbc-toolbar wbc-toolbar-compact">
+                    <button class="wbc-tool active" data-tool="pen" title="pen">✏</button>
+                    <button class="wbc-tool" data-tool="highlighter" title="highlighter">▨</button>
+                    <button class="wbc-tool" data-tool="strike" title="cross-out">✕</button>
+                    <button class="wbc-tool" data-tool="eraser" title="eraser">◻</button>
+                    <div class="wbc-divider"></div>
+                    <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
+                    <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" title="gold"></button>
+                    <button class="wbc-swatch" data-color="#166534" style="background:#166534" title="green"></button>
+                    <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c" title="red"></button>
+                    <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8" title="blue"></button>
+                    <div class="wbc-divider"></div>
+                    <button class="wbc-size" data-w="1" title="fine">·</button>
+                    <button class="wbc-size active" data-w="2" title="medium">–</button>
+                    <button class="wbc-size" data-w="4" title="thick">━</button>
+                    <div class="wbc-divider"></div>
+                    <button class="wbc-action" data-wb-finger title="finger drawing (off = pencil only)">touch</button>
+                    <button class="wbc-action" data-wb-undo title="undo">↩</button>
+                    <button class="wbc-action" data-wb-clear title="clear">⌫</button>
+                  </div>
+                  <div class="wb-pad-viewport">
+                    <div class="wb-pad-sheet">
+                      <canvas class="wb-pad-canvas" aria-label="scratch canvas"></canvas>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <% }) %>
           <% } else { %>
-            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="type notes here...  (draw on canvas →)" rows="3">
+            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="type your answer…" rows="3">
             </textarea>
+            <div class="part-scratch" data-wb-root data-wb-key="<%= q._id %>-main">
+              <div class="part-scratch-bar">
+                <span class="part-scratch-title">scratch paper</span>
+                <span class="wb-zoom-label part-scratch-zoom-pill">100%</span>
+                <button type="button" class="part-scratch-icon-btn" data-wb-zoom-out title="zoom out">−</button>
+                <button type="button" class="part-scratch-icon-btn" data-wb-zoom-in title="zoom in">+</button>
+                <button type="button" class="part-scratch-text-btn" data-wb-expand aria-expanded="false">expand</button>
+                <button type="button" class="part-scratch-text-btn" data-wb-fullscreen title="fullscreen sheet">⛶</button>
+              </div>
+              <div class="wbc-toolbar wbc-toolbar-compact">
+                <button class="wbc-tool active" data-tool="pen" title="pen">✏</button>
+                <button class="wbc-tool" data-tool="highlighter" title="highlighter">▨</button>
+                <button class="wbc-tool" data-tool="strike" title="cross-out">✕</button>
+                <button class="wbc-tool" data-tool="eraser" title="eraser">◻</button>
+                <div class="wbc-divider"></div>
+                <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
+                <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" title="gold"></button>
+                <button class="wbc-swatch" data-color="#166534" style="background:#166534" title="green"></button>
+                <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c" title="red"></button>
+                <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8" title="blue"></button>
+                <div class="wbc-divider"></div>
+                <button class="wbc-size" data-w="1" title="fine">·</button>
+                <button class="wbc-size active" data-w="2" title="medium">–</button>
+                <button class="wbc-size" data-w="4" title="thick">━</button>
+                <div class="wbc-divider"></div>
+                <button class="wbc-action" data-wb-finger title="finger drawing (off = pencil only)">touch</button>
+                <button class="wbc-action" data-wb-undo title="undo">↩</button>
+                <button class="wbc-action" data-wb-clear title="clear">⌫</button>
+              </div>
+              <div class="wb-pad-viewport">
+                <div class="wb-pad-sheet">
+                  <canvas class="wb-pad-canvas" aria-label="scratch canvas"></canvas>
+                </div>
+              </div>
+            </div>
           <% } %>
         </div>
 
@@ -129,54 +199,21 @@
 
   </div><!-- /ps-question-col -->
 
-  <!-- ── Right: tools ── -->
+  <div class="ps-col-resizer" id="ps-col-resizer" title="drag to resize"></div>
+
+  <!-- ── Right: calculator ── -->
   <div class="ps-tools-col" id="ps-tools-col">
 
     <button class="tools-toggle" id="tools-toggle" onclick="PSApp.toggleTools()" title="Toggle panel">
       <span id="tools-toggle-icon">›</span>
     </button>
 
-    <!-- Tab bar -->
-    <div class="tool-tabs">
-      <button class="tool-tab active" data-panel="canvas" onclick="PSApp.switchTab('canvas')">canvas</button>
-      <button class="tool-tab" data-panel="calc" onclick="PSApp.switchTab('calc')">calculator</button>
+    <div class="calc-panel-head">
+      <span class="calc-panel-title">calculator</span>
+      <button type="button" class="calc-expand-btn" onclick="PSApp.expandCalc()" title="large calculator">expand</button>
     </div>
-
-    <!-- Canvas panel -->
-    <div class="tool-panel" id="panel-canvas">
-      <div class="wbc-toolbar" id="wbc-toolbar">
-        <!-- Pen/Eraser -->
-        <button class="wbc-tool active" data-tool="pen"    onclick="WB.setTool('pen');this.closest('.wbc-toolbar').querySelectorAll('.wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')" title="Pen">✏</button>
-        <button class="wbc-tool"        data-tool="eraser" onclick="WB.setTool('eraser');this.closest('.wbc-toolbar').querySelectorAll('.wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')" title="Eraser">◻</button>
-
-        <div class="wbc-divider"></div>
-
-        <!-- Color swatches -->
-        <button class="wbc-swatch active" data-color="#e8e8e8" style="background:#e8e8e8" onclick="WB.setColor(this.dataset.color)" title="White"></button>
-        <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" onclick="WB.setColor(this.dataset.color)" title="Gold"></button>
-        <button class="wbc-swatch" data-color="#4ade80" style="background:#4ade80" onclick="WB.setColor(this.dataset.color)" title="Green"></button>
-        <button class="wbc-swatch" data-color="#f87171" style="background:#f87171" onclick="WB.setColor(this.dataset.color)" title="Red"></button>
-        <button class="wbc-swatch" data-color="#60a5fa" style="background:#60a5fa" onclick="WB.setColor(this.dataset.color)" title="Blue"></button>
-
-        <div class="wbc-divider"></div>
-
-        <!-- Sizes -->
-        <button class="wbc-size"       data-w="1" onclick="WB.setWidth(1)" title="Fine">·</button>
-        <button class="wbc-size active" data-w="2" onclick="WB.setWidth(2)" title="Medium">–</button>
-        <button class="wbc-size"       data-w="4" onclick="WB.setWidth(4)" title="Thick">━</button>
-
-        <div class="wbc-divider"></div>
-
-        <!-- Undo / Clear -->
-        <button class="wbc-action" onclick="WB.undo()" title="Undo">↩</button>
-        <button class="wbc-action" onclick="if(confirm('clear canvas?')) WB.clear()" title="Clear">⌫</button>
-      </div>
-      <canvas id="wb-canvas"></canvas>
-    </div>
-
-    <!-- Calculator panel -->
-    <div class="tool-panel hidden" id="panel-calc">
-      <div id="desmos-container" style="flex:1;min-height:0;"></div>
+    <div class="calc-panel-body" id="panel-calc">
+      <div id="desmos-container" class="desmos-host"></div>
     </div>
 
   </div><!-- /ps-tools-col -->
@@ -220,27 +257,29 @@
   </div>
 
   <!-- Full canvas -->
-  <div class="focus-canvas-wrap">
+  <div class="focus-canvas-wrap" id="focus-canvas-wrap">
     <canvas id="wb-focus-canvas"></canvas>
   </div>
 
   <!-- Floating toolbar -->
   <div class="focus-toolbar">
-    <button class="wbc-tool active" data-tool="pen"    onclick="WB.setTool('pen');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">✏</button>
-    <button class="wbc-tool"        data-tool="eraser" onclick="WB.setTool('eraser');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">◻</button>
+    <button class="wbc-tool active" data-tool="pen" onclick="WB.setTool('pen');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">✏</button>
+    <button class="wbc-tool" data-tool="highlighter" onclick="WB.setTool('highlighter');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">▨</button>
+    <button class="wbc-tool" data-tool="strike" onclick="WB.setTool('strike');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">✕</button>
+    <button class="wbc-tool" data-tool="eraser" onclick="WB.setTool('eraser');document.querySelectorAll('.focus-toolbar .wbc-tool').forEach(b=>b.classList.remove('active'));this.classList.add('active')">◻</button>
     <div class="wbc-divider"></div>
-    <button class="wbc-swatch active" data-color="#e8e8e8" style="background:#e8e8e8" onclick="WB.setColor(this.dataset.color)"></button>
-    <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" onclick="WB.setColor(this.dataset.color)"></button>
-    <button class="wbc-swatch" data-color="#4ade80" style="background:#4ade80" onclick="WB.setColor(this.dataset.color)"></button>
-    <button class="wbc-swatch" data-color="#f87171" style="background:#f87171" onclick="WB.setColor(this.dataset.color)"></button>
-    <button class="wbc-swatch" data-color="#60a5fa" style="background:#60a5fa" onclick="WB.setColor(this.dataset.color)"></button>
+    <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
+    <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
+    <button class="wbc-swatch" data-color="#166534" style="background:#166534" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
+    <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
+    <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8" onclick="WB.setColor(this.dataset.color);document.querySelectorAll('.focus-toolbar .wbc-swatch').forEach(b=>b.classList.remove('active'));this.classList.add('active')"></button>
     <div class="wbc-divider"></div>
-    <button class="wbc-size"       data-w="1" onclick="WB.setWidth(1)">·</button>
-    <button class="wbc-size active" data-w="2" onclick="WB.setWidth(2)">–</button>
-    <button class="wbc-size"       data-w="4" onclick="WB.setWidth(4)">━</button>
+    <button class="wbc-size" data-w="1" onclick="WB.setWidth(1);document.querySelectorAll('.focus-toolbar .wbc-size').forEach(b=>b.classList.remove('active'));this.classList.add('active')">·</button>
+    <button class="wbc-size active" data-w="2" onclick="WB.setWidth(2);document.querySelectorAll('.focus-toolbar .wbc-size').forEach(b=>b.classList.remove('active'));this.classList.add('active')">–</button>
+    <button class="wbc-size" data-w="4" onclick="WB.setWidth(4);document.querySelectorAll('.focus-toolbar .wbc-size').forEach(b=>b.classList.remove('active'));this.classList.add('active')">━</button>
     <div class="wbc-divider"></div>
     <button class="wbc-action" onclick="WB.undo()">↩</button>
-    <button class="wbc-action" onclick="if(confirm('clear?')) WB.clear()">⌫</button>
+    <button class="wbc-action" onclick="if(confirm('clear sheet?')) WB.clear()">⌫</button>
     <div class="wbc-divider"></div>
     <button class="ps-nav-btn" onclick="PSApp.prevFromFocus()">←</button>
     <button class="ps-nav-btn" onclick="PSApp.nextFromFocus()">→</button>
