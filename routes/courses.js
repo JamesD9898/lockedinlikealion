@@ -149,7 +149,7 @@ router.get('/:slug/practice', async (req, res) => {
   const course = await Course.findOne({ slug: req.params.slug }).lean();
   if (!course) return res.status(404).render('404');
 
-  const { units: unitsParam, type } = req.query;
+  const { units: unitsParam, type, limit: limitParam } = req.query;
 
   // Determine which unit indices to pull from
   let unitIndices;
@@ -181,13 +181,17 @@ router.get('/:slug/practice', async (req, res) => {
     [questions[i], questions[j]] = [questions[j], questions[i]];
   }
 
+  // Apply question limit if specified
+  const limit = limitParam ? parseInt(limitParam) : null;
+  const finalQuestions = (limit && limit > 0) ? questions.slice(0, limit) : questions;
+
   // Build a synthetic problem set
   const practiceSet = {
     _id: 'practice-' + Date.now(),
     title: 'Practice Session',
     type: 'problem_set',
     timeLimit: null,
-    questions
+    questions: finalQuestions
   };
 
   // Fake unit/indices for breadcrumb

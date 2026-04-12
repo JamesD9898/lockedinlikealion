@@ -2600,3 +2600,547 @@ body.ps-calc-open .ps-calc-drawer {
 .ps-immersive .ps-footer {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
+
+
+/* ════════════════════════════════════════════
+   NEW LAYOUT — problem-set v2
+   Notepad + Desmos, no canvas
+   ════════════════════════════════════════════ */
+
+/* ── Topbar extras ── */
+
+.ps-set-name {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.ps-topbar-title .ps-hud-pos {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Timer group ── */
+
+.ps-timer-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.ps-timer-settings-btn,
+.ps-timer-pause-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  transition: color 0.12s;
+  line-height: 1;
+}
+.ps-timer-settings-btn:hover,
+.ps-timer-pause-btn:hover { color: var(--accent); }
+
+.ps-timer-of {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-timer.timer-paused {
+  opacity: 0.45;
+}
+
+/* ── Calc button (prominent) ── */
+
+.ps-calc-btn {
+  background: rgba(200, 164, 110, 0.12);
+  border: 1px solid rgba(200, 164, 110, 0.4);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.ps-calc-btn:hover {
+  background: rgba(200, 164, 110, 0.22);
+  border-color: var(--accent);
+}
+.ps-calc-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* ── Notepad ── */
+
+.ps-notepad-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 80px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+.ps-notepad-area {
+  flex: 1;
+  background: #111113;
+  border: none;
+  color: var(--text);
+  padding: 0.9rem 1rem;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  resize: none;
+  line-height: 1.75;
+  min-height: 0;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+.ps-notepad-area::placeholder { color: var(--text-muted); line-height: 1.7; }
+.ps-notepad-area:focus { background: #141416; }
+
+/* ── Row resize handle (notepad ↔ calc) ── */
+
+.ps-tools-row-divider {
+  height: 6px;
+  background: var(--border);
+  cursor: row-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+}
+.ps-tools-row-divider:hover { background: var(--accent); }
+.ps-tools-row-divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* ── Calc panel (within tools column) ── */
+
+.ps-calc-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+/* ── Per-part reveal ── */
+
+.qpart-reveal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.btn-reveal-part {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-dim);
+  padding: 0.3rem 0.9rem;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.btn-reveal-part:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn-reveal-part.hidden { display: none; }
+
+/* ── Solution area (per part or single) ── */
+
+.qpart-solution,
+.qpart-single .qpart-solution {
+  margin-top: 0.6rem;
+  animation: solAppear 0.22s ease-out;
+}
+
+.ps-sol-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.ps-sol-label {
+  font-family: var(--font);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--green);
+}
+
+.ps-sol-text {
+  font-size: 0.96rem;
+  line-height: 1.8;
+  color: #c8c8c0;
+  white-space: pre-wrap;
+}
+
+.qpart-single {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* ── End screen (full overlay) ── */
+
+#end-screen.ps-end-screen {
+  position: fixed;
+  inset: 44px 0 48px; /* between topbar and footer */
+  z-index: 50;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* ── Timer / generic modal ── */
+
+.ps-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.ps-modal {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 340px;
+  overflow: hidden;
+}
+
+.ps-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.ps-modal-header button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.12s;
+}
+.ps-modal-header button:hover { color: var(--text); }
+
+.ps-modal-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ps-modal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  gap: 1rem;
+  cursor: pointer;
+}
+
+.ps-modal-row select,
+.ps-modal-row input[type="number"] {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  min-width: 80px;
+  transition: border-color 0.15s;
+}
+.ps-modal-row select:focus,
+.ps-modal-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ps-modal-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ps-modal-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ── Notes page v2 ── */
+
+.note-text-preview {
+  font-family: var(--font);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin-top: 0.4rem;
+  max-height: 4.5rem;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.note-canvas-wrap {
+  background: #1c1c1f;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-text-wrap {
+  background: #111113;
+  padding: 0.6rem 0.75rem;
+  min-height: 70px;
+  border-bottom: 1px solid var(--border);
+}
+
+.note-no-content {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 1rem;
+  font-family: var(--font);
+}
+
+/* Formula sheets */
+.formula-sheet-wrap {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1.2rem;
+  overflow: hidden;
+}
+
+.formula-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.formula-sheet-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.formula-sheet-hint {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.formula-sheet-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 0.75rem 0.85rem;
+  font-family: var(--font);
+  font-size: 0.8rem;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.7;
+  outline: none;
+}
+.formula-sheet-textarea::placeholder { color: var(--text-muted); }
+.formula-sheet-textarea:focus { background: rgba(255,255,255,0.02); }
+
+/* Course-level notes */
+.course-notes-section {
+  margin-bottom: 2.5rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.course-notes-header {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.course-notes-area {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 0.9rem 1rem;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.75;
+  outline: none;
+}
+.course-notes-area::placeholder { color: var(--text-muted); }
+
+/* ── Progress stats on course-detail ── */
+
+.course-progress-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0.8rem 0;
+}
+
+.course-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.progress-stats-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.progress-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.progress-stat-num {
+  font-size: 1.4rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.progress-stat-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stat-correct   .progress-stat-num { color: var(--green); }
+.stat-partial   .progress-stat-num { color: var(--yellow); }
+.stat-incorrect .progress-stat-num { color: var(--red); }
+.stat-done      .progress-stat-num { color: var(--accent); }
+
+/* Practice modal improvements */
+.practice-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.practice-opt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  gap: 1rem;
+}
+
+.practice-opt-row input[type="number"],
+.practice-opt-row select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  width: 90px;
+  transition: border-color 0.15s;
+}
+.practice-opt-row input[type="number"]:focus,
+.practice-opt-row select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Responsive fixes for new layout ── */
+
+@media (max-width: 768px) {
+  .ps-main {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .ps-col-resizer { display: none !important; }
+  .ps-tools-col {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 45vh;
+    min-height: 160px;
+  }
+  .ps-set-name { max-width: 140px; }
+  .ps-topbar-title { gap: 0.4rem; }
+  .ps-calc-btn { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
+  .ps-timer-of { display: none; }
+}
+
+@media (max-width: 480px) {
+  .ps-back-label { display: none; }
+  .ps-set-name { display: none; }
+  .ps-topbar { padding: 0 0.7rem; }
+  .ps-question-col { padding: 0.9rem; }
+  .question-card { padding: 1.3rem 1.1rem; }
+}
