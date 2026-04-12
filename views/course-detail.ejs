@@ -20,22 +20,98 @@
     </div>
   </div>
 
+  <%
+    // Compute overall progress stats
+    const allSets = [];
+    course.units.forEach(u => u.problemSets.forEach(ps => allSets.push(ps)));
+    const totalSets = allSets.length;
+    const completedSets = allSets.filter(ps => progressMap[ps._id.toString()] && progressMap[ps._id.toString()].completed).length;
+    const inProgressSets = allSets.filter(ps => {
+      const p = progressMap[ps._id.toString()];
+      return p && !p.completed && p.timeSpent > 0;
+    }).length;
+
+    let totalCorrect = 0, totalPartial = 0, totalIncorrect = 0, totalAnswered = 0;
+    Object.values(progressMap).forEach(p => {
+      if (p && p.answers) {
+        p.answers.forEach(a => {
+          if (a.selfGrade) {
+            totalAnswered++;
+            if (a.selfGrade === 'correct')   totalCorrect++;
+            else if (a.selfGrade === 'partial')   totalPartial++;
+            else if (a.selfGrade === 'incorrect') totalIncorrect++;
+          }
+        });
+      }
+    });
+    const pct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
+  %>
+
+  <% if (totalSets > 0) { %>
+  <div class="overview-card fade-in" style="margin-bottom: 1.5rem;">
+    <div class="course-progress-bar"><div class="course-progress-fill" style="width:<%= pct %>%"></div></div>
+    <div class="progress-stats-row">
+      <div class="progress-stat stat-done">
+        <span class="progress-stat-num"><%= completedSets %><span style="font-size:0.9rem;color:var(--text-muted)">/<%= totalSets %></span></span>
+        <span class="progress-stat-label">sets done</span>
+      </div>
+      <% if (inProgressSets > 0) { %>
+      <div class="progress-stat">
+        <span class="progress-stat-num" style="color:var(--yellow)"><%= inProgressSets %></span>
+        <span class="progress-stat-label">in progress</span>
+      </div>
+      <% } %>
+      <% if (totalAnswered > 0) { %>
+      <div class="progress-stat stat-correct">
+        <span class="progress-stat-num"><%= totalCorrect %></span>
+        <span class="progress-stat-label">correct</span>
+      </div>
+      <div class="progress-stat stat-partial">
+        <span class="progress-stat-num"><%= totalPartial %></span>
+        <span class="progress-stat-label">partial</span>
+      </div>
+      <div class="progress-stat stat-incorrect">
+        <span class="progress-stat-num"><%= totalIncorrect %></span>
+        <span class="progress-stat-label">missed</span>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
   <!-- Practice modal -->
   <div id="practice-modal" class="modal hidden">
     <div class="modal-content fade-in">
       <h2>practice session</h2>
-      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">pick units to pull questions from (or leave all checked for everything)</p>
-      <div id="unit-checkboxes" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.2rem;">
-        <% course.units.forEach((unit, ui) => { %>
-          <label style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;cursor:pointer;">
+      <p style="font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem;">configure your session, then start.</p>
+
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.5rem;">units</div>
+        <div id="unit-checkboxes" style="display:flex;flex-direction:column;gap:0.45rem;">
+          <% course.units.forEach((unit, ui) => { %>
+          <label style="display:flex;align-items:center;gap:0.6rem;font-size:0.8rem;cursor:pointer;color:var(--text-dim);">
             <input type="checkbox" name="unit" value="<%= ui %>" checked style="accent-color:var(--accent)">
             Unit <%= ui + 1 %> — <%= unit.title %>
+            <span style="font-size:0.68rem;color:var(--text-muted);margin-left:auto;"><%= unit.problemSets.reduce((s, ps) => s + ps.questions.length, 0) %> q</span>
           </label>
-        <% }) %>
+          <% }) %>
+        </div>
       </div>
+
+      <div class="practice-opts">
+        <div class="practice-opt-row">
+          <span>question limit</span>
+          <input type="number" id="practice-q-limit" min="1" max="200" placeholder="all" style="width:80px;">
+        </div>
+        <div class="practice-opt-row">
+          <span>shuffle order</span>
+          <input type="checkbox" id="practice-shuffle" checked style="accent-color:var(--accent);width:auto;">
+        </div>
+      </div>
+
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="hidePracticeModal()">cancel</button>
-        <button type="button" class="btn" onclick="startPractice()">start</button>
+        <button type="button" class="btn" onclick="startPractice()">start →</button>
       </div>
     </div>
   </div>
@@ -47,29 +123,42 @@
   <% } else { %>
     <div class="units-list">
       <% course.units.forEach((unit, ui) => { %>
-        <div class="unit-card fade-in" style="animation-delay: <%= ui * 0.06 %>s">
+        <%
+          const unitSets = unit.problemSets;
+          const unitDone = unitSets.filter(ps => progressMap[ps._id.toString()] && progressMap[ps._id.toString()].completed).length;
+          const unitPct  = unitSets.length > 0 ? Math.round((unitDone / unitSets.length) * 100) : 0;
+        %>
+        <div class="unit-card fade-in" style="animation-delay: <%= ui * 0.05 %>s">
           <div class="unit-header">
             <a href="/courses/<%= course.slug %>/unit/<%= ui %>">
               <span class="unit-number">Unit <%= ui + 1 %></span>
               <h2><%= unit.title %></h2>
             </a>
+            <% if (unitSets.length > 0) { %>
+            <div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.3rem;display:flex;align-items:center;gap:0.6rem;">
+              <span><%= unitDone %>/<%= unitSets.length %> done</span>
+              <% if (unitPct === 100) { %><span style="color:var(--green)">✓ complete</span><% } %>
+            </div>
+            <% } %>
           </div>
           <div class="sets-list">
             <% unit.problemSets.forEach((ps, si) => { %>
               <% const prog = progressMap[ps._id.toString()]; %>
-              <a href="/courses/<%= course.slug %>/unit/<%= ui %>/set/<%= si %>" class="set-item <%= prog && prog.completed ? 'set-done' : '' %>">
+              <a href="/courses/<%= course.slug %>/unit/<%= ui %>/set/<%= si %>"
+                 class="set-item <%= prog && prog.completed ? 'set-done' : '' %>">
                 <div class="set-info">
                   <span class="set-type-badge <%= ps.type %>"><%= ps.type === 'exam' ? 'exam' : 'set' %></span>
                   <span class="set-title"><%= ps.title %></span>
                   <% if (ps.timeLimit) { %>
-                    <span class="set-time"><%= ps.timeLimit %> min</span>
+                    <span class="set-time"><%= ps.timeLimit %>m</span>
                   <% } %>
+                  <span style="font-size:0.68rem;color:var(--text-muted);"><%= ps.questions.length %>q</span>
                 </div>
                 <div class="set-status">
                   <% if (prog && prog.completed) { %>
-                    <span class="check-mark">&#10003;</span>
-                  <% } else if (prog) { %>
-                    <span class="in-progress-dot"></span>
+                    <span class="check-mark">✓</span>
+                  <% } else if (prog && prog.timeSpent > 0) { %>
+                    <span class="in-progress-dot" title="in progress"></span>
                   <% } %>
                 </div>
               </a>
@@ -91,7 +180,10 @@ function hidePracticeModal() {
 function startPractice() {
   const checked = Array.from(document.querySelectorAll('input[name="unit"]:checked')).map(el => el.value);
   if (checked.length === 0) return alert('select at least one unit');
-  window.location.href = '/courses/<%= course.slug %>/practice?units=' + checked.join(',');
+  const ql = document.getElementById('practice-q-limit').value;
+  let url = '/courses/<%= course.slug %>/practice?units=' + checked.join(',');
+  if (ql && parseInt(ql) > 0) url += '&limit=' + parseInt(ql);
+  window.location.href = url;
 }
 </script>
 

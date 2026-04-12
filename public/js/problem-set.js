@@ -1,118 +1,49 @@
-// problem-set.js — fullscreen canvas, collapsible problem + calc, part navigation
+// problem-set.js — two-column layout, notepad, per-part reveal, resizable panels
 
 const PSApp = (() => {
   const cfg = window.__PS;
 
-  let current = 0;
-  let currentPart = 0;
-  let total = cfg.totalQ;
-  let seconds = (cfg.existing && cfg.existing.timeSpent) || 0;
+  // ── State ──────────────────────────────────────────────────────────────────
+  let current     = 0;
+  let total       = cfg.totalQ;
+  let seconds     = (cfg.existing && cfg.existing.timeSpent) || 0;
   let timerRunning = true;
+  let timerPaused  = false;
   let timerInterval = null;
+  let timerMode    = cfg.timeLimit ? 'down' : 'up'; // countdown if time limit set
+  let timerLimit   = cfg.timeLimit ? cfg.timeLimit * 60 : null; // in seconds
 
-  let calcOpen = false;
-
-  let revealed = {};
-  let grades = {};
-
+  let toolsOpen  = true;
   let desmosCalc = null;
-  let calcExpanded = false;
+  let desmosInited = false;
 
-  const CALC_W_STORAGE = 'ps-calc-sidebar-width';
-  const CALC_W_DEFAULT = 320;
-  const CALC_W_MIN = 200;
+  let grades = {};          // { qi: 'correct'|'partial'|'incorrect' }
+  let revealed = {};        // { qi: true } for single-answer reveals
+  let revealedParts = {};   // { qi: Set<pi> } for per-part reveals
 
-  function calcSidebarMaxW() {
-    return Math.min(Math.floor(window.innerWidth * 0.72), 760);
+  // ── Notepad storage ────────────────────────────────────────────────────────
+  function noteKey(qi) { return 'note-' + cfg.qIds[qi]; }
+
+  function saveNote() {
+    const el = document.getElementById('ps-notepad');
+    if (!el) return;
+    try { localStorage.setItem(noteKey(current), el.value); } catch (_) {}
   }
 
-  function applyCalcSidebarWidth(px) {
-    const maxW = calcSidebarMaxW();
-    const w = Math.max(CALC_W_MIN, Math.min(maxW, Math.round(px)));
-    document.documentElement.style.setProperty('--ps-calc-w', w + 'px');
-    try {
-      localStorage.setItem(CALC_W_STORAGE, String(w));
-    } catch (e) {}
-    return w;
+  function loadNote(qi) {
+    const el = document.getElementById('ps-notepad');
+    if (!el) return;
+    try { el.value = localStorage.getItem(noteKey(qi)) || ''; } catch (_) { el.value = ''; }
   }
 
-  function loadCalcSidebarWidth() {
-    let w = CALC_W_DEFAULT;
-    try {
-      const s = localStorage.getItem(CALC_W_STORAGE);
-      if (s) w = parseFloat(s);
-    } catch (e) {}
-    applyCalcSidebarWidth(w);
+  function clearNote() {
+    const el = document.getElementById('ps-notepad');
+    if (!el) return;
+    el.value = '';
+    try { localStorage.removeItem(noteKey(current)); } catch (_) {}
   }
 
-  function initCalcSidebarResize() {
-    loadCalcSidebarWidth();
-    const handle = document.getElementById('ps-calc-resize-handle');
-    const drawer = document.getElementById('ps-calc-drawer');
-    if (!handle || !drawer) return;
-
-    let dragging = false;
-    let startX = 0;
-    let startW = 0;
-    let dragPointerId = null;
-
-    function afterResize() {
-      if (desmosCalc) setTimeout(() => desmosCalc.resize(), 30);
-      if (typeof WB !== 'undefined' && WB.resize) requestAnimationFrame(() => WB.resize());
-    }
-
-    handle.addEventListener('pointerdown', e => {
-      if (!calcOpen) return;
-      e.preventDefault();
-      dragging = true;
-      dragPointerId = e.pointerId;
-      startX = e.clientX;
-      startW = drawer.getBoundingClientRect().width;
-      drawer.classList.add('ps-calc-dragging');
-      try {
-        handle.setPointerCapture(e.pointerId);
-      } catch (err) {}
-    });
-
-    handle.addEventListener('pointermove', e => {
-      if (!dragging || e.pointerId !== dragPointerId) return;
-      e.preventDefault();
-      const delta = startX - e.clientX;
-      applyCalcSidebarWidth(startW + delta);
-      afterResize();
-    });
-
-    handle.addEventListener('pointerup', e => {
-      if (!dragging || e.pointerId !== dragPointerId) return;
-      dragging = false;
-      dragPointerId = null;
-      drawer.classList.remove('ps-calc-dragging');
-      try {
-        handle.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-      afterResize();
-    });
-
-    handle.addEventListener('pointercancel', e => {
-      if (e.pointerId !== dragPointerId) return;
-      dragging = false;
-      dragPointerId = null;
-      drawer.classList.remove('ps-calc-dragging');
-      afterResize();
-    });
-
-    window.addEventListener(
-      'resize',
-      () => {
-        const raw = getComputedStyle(document.documentElement).getPropertyValue('--ps-calc-w');
-        const cur = parseFloat(raw) || CALC_W_DEFAULT;
-        applyCalcSidebarWidth(cur);
-        afterResize();
-      },
-      { passive: true }
-    );
-  }
-
+  // ── Desmos ─────────────────────────────────────────────────────────────────
   const DESMOS_OPTS = {
     keypad: true,
     expressions: true,
@@ -124,18 +55,352 @@ const PSApp = (() => {
   };
 
   function initDesmos() {
-    if (desmosCalc) return;
+    if (desmosInited) return;
     const el = document.getElementById('desmos-container');
     if (el && typeof Desmos !== 'undefined') {
       desmosCalc = Desmos.GraphingCalculator(el, DESMOS_OPTS);
+      desmosInited = true;
+      setTimeout(() => desmosCalc && desmosCalc.resize(), 80);
     }
   }
 
-  function padKey(qi, part) {
-    const qId = cfg.qIds[qi];
-    const n = cfg.partsLayout[qi];
-    if (n > 0) return qId + '-p' + part;
-    return qId + '-main';
+  // ── Column resizer (question ↔ tools) ──────────────────────────────────────
+  const TOOLS_W_KEY = 'ps-tools-w';
+  const TOOLS_W_DEFAULT = 400;
+  const TOOLS_W_MIN = 260;
+
+  function applyToolsWidth(px) {
+    const max = Math.floor(window.innerWidth * 0.65);
+    const w = Math.max(TOOLS_W_MIN, Math.min(max, Math.round(px)));
+    document.documentElement.style.setProperty('--ps-tools-w', w + 'px');
+    return w;
+  }
+
+  function initColumnResizer() {
+    // Load saved width
+    try {
+      const s = localStorage.getItem(TOOLS_W_KEY);
+      if (s) applyToolsWidth(parseFloat(s));
+      else applyToolsWidth(TOOLS_W_DEFAULT);
+    } catch (_) { applyToolsWidth(TOOLS_W_DEFAULT); }
+
+    const handle = document.getElementById('ps-col-resizer');
+    if (!handle) return;
+
+    let dragging = false, startX = 0, startW = 0;
+
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      dragging = true;
+      startX = e.clientX;
+      const toolsCol = document.getElementById('ps-tools-col');
+      startW = toolsCol ? toolsCol.getBoundingClientRect().width : TOOLS_W_DEFAULT;
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      e.preventDefault();
+      const w = applyToolsWidth(startW + (startX - e.clientX));
+      try { localStorage.setItem(TOOLS_W_KEY, String(w)); } catch (_) {}
+      if (desmosCalc) desmosCalc.resize();
+    });
+    handle.addEventListener('pointerup', e => {
+      dragging = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+    handle.addEventListener('pointercancel', e => {
+      dragging = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+    window.addEventListener('resize', () => {
+      const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ps-tools-w')) || TOOLS_W_DEFAULT;
+      applyToolsWidth(cur);
+      if (desmosCalc) desmosCalc.resize();
+    }, { passive: true });
+  }
+
+  // ── Row resizer (notepad ↔ calc within tools column) ──────────────────────
+  const ROW_H_KEY = 'ps-notepad-h';
+
+  function initRowResizer() {
+    try {
+      const s = localStorage.getItem(ROW_H_KEY);
+      if (s) {
+        const wrap = document.getElementById('ps-notepad-wrap');
+        if (wrap) { wrap.style.height = s + 'px'; wrap.style.flex = 'none'; }
+      }
+    } catch (_) {}
+
+    const handle = document.getElementById('ps-tools-row-divider');
+    const notepadWrap = document.getElementById('ps-notepad-wrap');
+    if (!handle || !notepadWrap) return;
+
+    let dragging = false, startY = 0, startH = 0;
+
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      dragging = true;
+      startY = e.clientY;
+      startH = notepadWrap.getBoundingClientRect().height;
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      e.preventDefault();
+      const maxH = window.innerHeight * 0.75;
+      const newH = Math.max(60, Math.min(maxH, startH + (e.clientY - startY)));
+      notepadWrap.style.height = newH + 'px';
+      notepadWrap.style.flex = 'none';
+      try { localStorage.setItem(ROW_H_KEY, String(Math.round(newH))); } catch (_) {}
+      if (desmosCalc) desmosCalc.resize();
+    });
+    handle.addEventListener('pointerup', e => {
+      dragging = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+    handle.addEventListener('pointercancel', e => {
+      dragging = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+  }
+
+  // ── Toggle tools panel ─────────────────────────────────────────────────────
+  function toggleTools() {
+    toolsOpen = !toolsOpen;
+    const main = document.getElementById('ps-main');
+    const resizer = document.getElementById('ps-col-resizer');
+    const btn = document.getElementById('btn-calc');
+    if (main) main.classList.toggle('tools-panel-hidden', !toolsOpen);
+    if (resizer) resizer.style.display = toolsOpen ? '' : 'none';
+    if (btn) btn.classList.toggle('active', toolsOpen);
+    if (toolsOpen) {
+      initDesmos();
+      setTimeout(() => desmosCalc && desmosCalc.resize(), 80);
+    }
+  }
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  function startTimer() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (!timerPaused) {
+        seconds++;
+        updateTimerDisplay();
+        checkTimeExpired();
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const el = document.getElementById('timer-display');
+    if (!el) return;
+    let display;
+    if (timerMode === 'down' && timerLimit !== null) {
+      const remaining = Math.max(0, timerLimit - seconds);
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      display = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    } else {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      display = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+    el.textContent = display;
+  }
+
+  function checkTimeExpired() {
+    if (timerMode === 'down' && timerLimit !== null && seconds >= timerLimit) {
+      document.getElementById('timer-display')?.classList.add('timer-expired');
+    }
+  }
+
+  function toggleTimer() {
+    timerPaused = !timerPaused;
+    const btn = document.getElementById('btn-timer-pause');
+    if (btn) btn.textContent = timerPaused ? '▶' : '⏸';
+    const el = document.getElementById('timer-display');
+    if (el) el.classList.toggle('timer-paused', timerPaused);
+  }
+
+  function openTimerSettings() {
+    const modal = document.getElementById('timer-modal');
+    if (!modal) return;
+    // Sync current state to modal inputs
+    const modeSelect = document.getElementById('timer-mode-select');
+    const limitInput = document.getElementById('timer-limit-input');
+    if (modeSelect) modeSelect.value = timerMode;
+    if (limitInput && timerLimit) limitInput.value = String(Math.round(timerLimit / 60));
+    modal.classList.remove('hidden');
+  }
+
+  function closeTimerSettings() {
+    document.getElementById('timer-modal')?.classList.add('hidden');
+  }
+
+  function applyTimerSettings() {
+    const modeSelect = document.getElementById('timer-mode-select');
+    const limitInput = document.getElementById('timer-limit-input');
+    const resetCb    = document.getElementById('timer-reset-cb');
+    if (modeSelect) timerMode = modeSelect.value;
+    if (limitInput) {
+      const mins = parseFloat(limitInput.value);
+      if (!isNaN(mins) && mins > 0) timerLimit = mins * 60;
+    }
+    if (resetCb && resetCb.checked) {
+      seconds = 0;
+      resetCb.checked = false;
+    }
+    // Update the "/45:00" display
+    const ofEl = document.querySelector('.ps-timer-of');
+    if (ofEl && timerLimit) {
+      const m = Math.floor(timerLimit / 60);
+      ofEl.textContent = '/' + String(m).padStart(2, '0') + ':00';
+      ofEl.style.display = '';
+    }
+    updateTimerDisplay();
+    checkTimeExpired();
+    closeTimerSettings();
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function go(idx) {
+    saveNote();
+    showSlide(idx);
+  }
+
+  function prev() {
+    if (current > 0) go(current - 1);
+  }
+
+  function next() {
+    if (current < total - 1) go(current + 1);
+    else finish();
+  }
+
+  function showSlide(idx) {
+    document.getElementById('end-screen')?.classList.add('hidden');
+    document.querySelectorAll('.question-slide').forEach(s => s.classList.remove('active'));
+    const slide = document.getElementById('slide-' + idx);
+    if (!slide) return;
+    slide.classList.add('active');
+    current = idx;
+
+    // Restore any revealed state
+    if (revealed[idx]) {
+      const sol = document.getElementById('sol-' + idx);
+      const btn = document.getElementById('reveal-' + idx);
+      if (sol) sol.classList.remove('hidden');
+      if (btn) btn.classList.add('hidden');
+    }
+    const rp = revealedParts[idx];
+    if (rp) {
+      rp.forEach(pi => {
+        document.getElementById('sol-' + idx + '-' + pi)?.classList.remove('hidden');
+        document.getElementById('reveal-' + idx + '-' + pi)?.classList.add('hidden');
+      });
+    }
+    if (grades[idx]) {
+      applyGradeUI(idx, grades[idx]);
+      if (revealed[idx] || (rp && rp.size > 0)) {
+        document.getElementById('grade-bar-' + idx)?.classList.remove('hidden');
+      }
+    }
+
+    // Update navigation UI
+    document.getElementById('nav-pos').textContent = (idx + 1) + ' / ' + total;
+    updateDots();
+    updateHud();
+    loadNote(idx);
+
+    // Scroll question column to top
+    const qCol = document.getElementById('ps-question-col');
+    if (qCol) qCol.scrollTop = 0;
+  }
+
+  function updateHud() {
+    const el = document.getElementById('ps-hud-pos');
+    if (!el) return;
+    const qn = cfg.qNums[current] || String(current + 1);
+    const n  = cfg.partsLayout[current];
+    el.textContent = n > 0 ? 'Q' + qn + ' · ' + n + ' parts' : 'Q' + qn;
+  }
+
+  function updateDots() {
+    document.querySelectorAll('.pdot').forEach((dot, i) => {
+      dot.classList.toggle('pdot-current', i === current);
+      // Grade classes applied in grade()
+    });
+    // Scroll the active dot into view
+    const activeDot = document.getElementById('pdot-' + current);
+    if (activeDot) activeDot.scrollIntoView({ inline: 'nearest', behavior: 'smooth' });
+  }
+
+  function updateNavButtons() {
+    const prevBtn = document.getElementById('btn-prev');
+    const nextBtn = document.getElementById('btn-next');
+    if (prevBtn) prevBtn.disabled = current === 0;
+    if (nextBtn) nextBtn.disabled = false; // can always "next" (finish if last)
+  }
+
+  // ── Reveal ─────────────────────────────────────────────────────────────────
+  // Single-answer reveal
+  function reveal(qi) {
+    if (revealed[qi]) return;
+    revealed[qi] = true;
+    const sol = document.getElementById('sol-' + qi);
+    const btn = document.getElementById('reveal-' + qi);
+    if (sol) { sol.classList.remove('hidden'); sol.classList.add('sol-appear'); }
+    if (btn) btn.classList.add('hidden');
+    document.getElementById('grade-bar-' + qi)?.classList.remove('hidden');
+  }
+
+  // Per-part reveal (only shows that part's answer)
+  function revealPart(qi, pi) {
+    if (!revealedParts[qi]) revealedParts[qi] = new Set();
+    if (revealedParts[qi].has(pi)) return;
+    revealedParts[qi].add(pi);
+
+    const sol = document.getElementById('sol-' + qi + '-' + pi);
+    const btn = document.getElementById('reveal-' + qi + '-' + pi);
+    if (sol) { sol.classList.remove('hidden'); sol.classList.add('sol-appear'); }
+    if (btn) btn.classList.add('hidden');
+
+    // Show grade bar once any part is revealed
+    document.getElementById('grade-bar-' + qi)?.classList.remove('hidden');
+  }
+
+  // ── Grading ────────────────────────────────────────────────────────────────
+  function grade(qi, g) {
+    grades[qi] = g;
+    applyGradeUI(qi, g);
+    updateDot(qi);
+  }
+
+  function applyGradeUI(qi, g) {
+    document.getElementById('grade-bar-' + qi)?.querySelectorAll('.grade-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.grade === g);
+    });
+  }
+
+  function updateDot(qi) {
+    const dot = document.getElementById('pdot-' + qi);
+    if (!dot) return;
+    dot.classList.remove('pdot-correct', 'pdot-partial', 'pdot-incorrect');
+    if (grades[qi]) dot.classList.add('pdot-' + grades[qi]);
+  }
+
+  // ── Answers collection ─────────────────────────────────────────────────────
+  function collectAnswers() {
+    const out = [];
+    document.querySelectorAll('.answer-input').forEach(ta => {
+      const slide = ta.closest('.question-slide');
+      if (!slide) return;
+      const qi = parseInt(slide.dataset.index, 10);
+      const row = { questionId: ta.dataset.qid, response: ta.value, selfGrade: grades[qi] || null };
+      if (ta.dataset.part !== undefined) row.part = parseInt(ta.dataset.part, 10);
+      out.push(row);
+    });
+    return out;
   }
 
   function restoreAnswers() {
@@ -147,274 +412,18 @@ const PSApp = (() => {
       document.querySelectorAll('.answer-input').forEach(ta => {
         if (String(ta.dataset.qid) !== id) return;
         if (ta.dataset.part !== undefined) {
-          if (a.part != null && String(ta.dataset.part) === String(a.part)) {
-            ta.value = a.response || '';
-          }
-        } else if (a.part == null || a.part === undefined) {
+          if (a.part != null && String(ta.dataset.part) === String(a.part)) ta.value = a.response || '';
+        } else if (a.part == null) {
           ta.value = a.response || '';
         }
       });
     });
   }
 
-  function init() {
-    if (cfg.existing && cfg.existing.answers) {
-      cfg.existing.answers.forEach(a => {
-        if (!a.questionId || !a.selfGrade) return;
-        const idx = cfg.qIds.findIndex(id => String(id) === String(a.questionId));
-        if (idx >= 0) {
-          grades[idx] = a.selfGrade;
-        }
-      });
-    }
-
-    if (typeof WB !== 'undefined') {
-      WB.init('wb-main-canvas', 'ps-canvas-shell');
-    }
-
-    initDesmos();
-    setTimeout(() => desmosCalc && desmosCalc.resize(), 150);
-
-    restoreAnswers();
-    for (let i = 0; i < total; i++) {
-      if (grades[i]) {
-        applyGradeUI(i, grades[i]);
-        updateDot(i);
-      }
-    }
-
-    showSlide(0);
-    requestAnimationFrame(() => {
-      if (typeof WB !== 'undefined' && WB.resize) WB.resize();
-    });
-
-    timerInterval = setInterval(() => {
-      if (timerRunning) {
-        seconds++;
-        updateTimerDisplay();
-        if (cfg.timeLimit && seconds >= cfg.timeLimit * 60) {
-          document.getElementById('timer-display')?.classList.add('timer-expired');
-        }
-      }
-    }, 1000);
-    updateTimerDisplay();
-
-    document.addEventListener('keydown', onKey);
-    setInterval(autoSave, 30000);
-
-    initCalcSidebarResize();
-  }
-
-  function showSlide(idx) {
-    document.getElementById('end-screen')?.classList.add('hidden');
-    document.querySelectorAll('.ps-q-slide').forEach(s => {
-      s.classList.remove('active');
-    });
-
-    if (idx >= total) { finish(); return; }
-
-    const slide = document.getElementById('slide-' + idx);
-    if (!slide) return;
-    slide.classList.add('active');
-    current = idx;
-
-    if (typeof WB !== 'undefined') {
-      WB.saveToStorage();
-      WB.switchPad(padKey(idx, currentPart));
-    }
-
-    if (grades[idx]) applyGradeUI(idx, grades[idx]);
-    if (revealed[idx]) {
-      document.getElementById('sol-' + idx)?.classList.remove('hidden');
-      document.getElementById('reveal-btn-' + idx)?.classList.add('hidden');
-      document.getElementById('grade-bar-' + idx)?.classList.remove('hidden');
-    }
-
-    document.getElementById('nav-pos').textContent = (idx + 1) + ' / ' + total;
-    updateNavButtons();
-
-    document.querySelectorAll('.pdot').forEach((dot, i) => {
-      dot.classList.toggle('pdot-current', i === idx);
-    });
-
-    updateHud();
-    highlightActivePart();
-    setTimeout(() => desmosCalc && desmosCalc.resize(), 50);
-  }
-
-  function updateHud() {
-    const el = document.getElementById('ps-hud-pos');
-    if (!el) return;
-    const qn = cfg.qNums[current] || String(current + 1);
-    const n = cfg.partsLayout[current];
-    if (n > 0) {
-      el.textContent = 'Q' + qn + ' · ' + (currentPart + 1) + '/' + n;
-    } else {
-      el.textContent = 'Q' + qn;
-    }
-  }
-
-  function highlightActivePart() {
-    document.querySelectorAll('.qpart').forEach(p => p.classList.remove('qpart-active'));
-    const slide = document.getElementById('slide-' + current);
-    if (!slide) return;
-    const n = cfg.partsLayout[current];
-    if (n > 0) {
-      const part = slide.querySelector('.qpart[data-part-index="' + currentPart + '"]');
-      part?.classList.add('qpart-active');
-    }
-  }
-
-  function go(idx) {
-    currentPart = 0;
-    showSlide(idx);
-  }
-
-  function prev() {
-    const n = cfg.partsLayout[current];
-    if (n > 0 && currentPart > 0) {
-      currentPart--;
-      if (typeof WB !== 'undefined') {
-        WB.saveToStorage();
-        WB.switchPad(padKey(current, currentPart));
-      }
-      updateHud();
-      highlightActivePart();
-      updateNavButtons();
-    } else if (current > 0) {
-      const prevQ = current - 1;
-      const pn = cfg.partsLayout[prevQ];
-      currentPart = pn > 0 ? pn - 1 : 0;
-      showSlide(prevQ);
-    }
-  }
-
-  function next() {
-    const n = cfg.partsLayout[current];
-    if (n > 0 && currentPart < n - 1) {
-      currentPart++;
-      if (typeof WB !== 'undefined') {
-        WB.saveToStorage();
-        WB.switchPad(padKey(current, currentPart));
-      }
-      updateHud();
-      highlightActivePart();
-      updateNavButtons();
-    } else {
-      currentPart = 0;
-      if (current < total - 1) showSlide(current + 1);
-      else finish();
-    }
-  }
-
-  function toggleCalc() {
-    calcOpen = !calcOpen;
-    document.body.classList.toggle('ps-calc-open', calcOpen);
-    const d = document.getElementById('ps-calc-drawer');
-    if (d) d.setAttribute('aria-hidden', calcOpen ? 'false' : 'true');
-    document.getElementById('btn-toggle-calc')?.classList.toggle('active', calcOpen);
-    if (calcOpen) {
-      initDesmos();
-      applyCalcSidebarWidth(
-        parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ps-calc-w')) || CALC_W_DEFAULT
-      );
-      setTimeout(() => {
-        desmosCalc && desmosCalc.resize();
-        if (typeof WB !== 'undefined' && WB.resize) WB.resize();
-      }, 80);
-    } else {
-      setTimeout(() => {
-        if (typeof WB !== 'undefined' && WB.resize) WB.resize();
-      }, 50);
-    }
-  }
-
-  function expandCalc() {
-    initDesmos();
-    const modal = document.getElementById('calc-modal');
-    modal.classList.remove('hidden');
-    calcExpanded = true;
-    const container = document.getElementById('desmos-container');
-    document.getElementById('desmos-modal-container').appendChild(container);
-    if (desmosCalc) setTimeout(() => desmosCalc.resize(), 80);
-  }
-
-  function collapseCalc() {
-    const container = document.getElementById('desmos-container');
-    document.getElementById('panel-calc').appendChild(container);
-    document.getElementById('calc-modal').classList.add('hidden');
-    calcExpanded = false;
-    if (desmosCalc) setTimeout(() => desmosCalc.resize(), 80);
-  }
-
-  function onKey(e) {
-    if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); next(); }
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
-    if (e.key === ' ') { e.preventDefault(); reveal(current); }
-    if (e.key === '1') grade(current, 'correct');
-    if (e.key === '2') grade(current, 'partial');
-    if (e.key === '3') grade(current, 'incorrect');
-    if (e.key === 'c' || e.key === 'C') toggleCalc();
-  }
-
-  function updateTimerDisplay() {
-    const m = Math.floor(seconds / 60), s = seconds % 60;
-    const el = document.getElementById('timer-display');
-    if (el) {
-      el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-    }
-  }
-
-  function reveal(idx) {
-    if (revealed[idx]) return;
-    revealed[idx] = true;
-    const sol = document.getElementById('sol-' + idx);
-    const revBtn = document.getElementById('reveal-btn-' + idx);
-    const gradeBar = document.getElementById('grade-bar-' + idx);
-    if (sol) { sol.classList.remove('hidden'); sol.classList.add('sol-appear'); }
-    if (revBtn) revBtn.classList.add('hidden');
-    if (gradeBar) gradeBar.classList.remove('hidden');
-  }
-
-  function grade(idx, g) {
-    grades[idx] = g;
-    applyGradeUI(idx, g);
-    updateDot(idx);
-  }
-
-  function applyGradeUI(idx, g) {
-    document.getElementById('grade-bar-' + idx)?.querySelectorAll('.grade-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.grade === g);
-    });
-  }
-
-  function updateDot(idx) {
-    const dot = document.getElementById('pdot-' + idx);
-    if (!dot) return;
-    dot.classList.remove('pdot-correct', 'pdot-partial', 'pdot-incorrect', 'pdot-answered');
-    if (grades[idx]) dot.classList.add('pdot-' + grades[idx]);
-  }
-
-  function collectAnswers() {
-    const out = [];
-    document.querySelectorAll('.answer-input').forEach(ta => {
-      const slide = ta.closest('.question-slide');
-      if (!slide) return;
-      const qi = parseInt(slide.dataset.index, 10);
-      const row = {
-        questionId: ta.dataset.qid,
-        response: ta.value,
-        selfGrade: grades[qi] || null
-      };
-      if (ta.dataset.part !== undefined) row.part = parseInt(ta.dataset.part, 10);
-      out.push(row);
-    });
-    return out;
-  }
-
+  // ── Auto-save ──────────────────────────────────────────────────────────────
   async function autoSave() {
-    if (typeof WB !== 'undefined') WB.saveToStorage();
+    saveNote();
+    if (cfg.psId.startsWith('practice-')) return; // don't save practice sessions
     await fetch('/api/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -428,30 +437,31 @@ const PSApp = (() => {
     }).catch(() => {});
   }
 
+  // ── Finish ─────────────────────────────────────────────────────────────────
   function finish() {
     clearInterval(timerInterval);
-    timerRunning = false;
-    if (typeof WB !== 'undefined') WB.saveToStorage();
-    if (calcExpanded) collapseCalc();
-    if (calcOpen) toggleCalc();
+    timerPaused = true;
+    saveNote();
 
-    fetch('/api/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        courseId: cfg.courseId,
-        problemSetId: cfg.psId,
-        answers: collectAnswers(),
-        timeSpent: seconds,
-        completed: true
-      })
-    });
+    if (!cfg.psId.startsWith('practice-')) {
+      fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: cfg.courseId,
+          problemSetId: cfg.psId,
+          answers: collectAnswers(),
+          timeSpent: seconds,
+          completed: true
+        })
+      });
+    }
 
     showEndScreen();
   }
 
   function showEndScreen() {
-    document.querySelectorAll('.ps-q-slide').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.question-slide').forEach(s => s.classList.remove('active'));
     const es = document.getElementById('end-screen');
     es.classList.remove('hidden');
 
@@ -468,39 +478,115 @@ const PSApp = (() => {
     document.getElementById('end-grades').innerHTML = `
       <div class="end-grade-item correct"><span class="end-grade-num">${counts.correct}</span><span>correct</span></div>
       <div class="end-grade-item partial"><span class="end-grade-num">${counts.partial}</span><span>partial</span></div>
-      <div class="end-grade-item incorrect"><span class="end-grade-num">${counts.incorrect}</span><span>incorrect</span></div>
+      <div class="end-grade-item incorrect"><span class="end-grade-num">${counts.incorrect}</span><span>missed</span></div>
       ${counts.ungraded > 0 ? `<div class="end-grade-item ungraded"><span class="end-grade-num">${counts.ungraded}</span><span>ungraded</span></div>` : ''}
     `;
 
     let html = '';
     for (let i = 0; i < total; i++) {
       const g = grades[i] || 'ungraded';
-      html += `<div class="end-q-row ${g}" onclick="PSApp.go(${i})"><span class="end-q-num">Q${i + 1}</span><span class="end-q-grade">${g}</span></div>`;
+      const qn = cfg.qNums[i] || String(i + 1);
+      html += `<div class="end-q-row ${g}" onclick="PSApp.go(${i})"><span class="end-q-num">Q${qn}</span><span class="end-q-grade">${g}</span></div>`;
     }
     document.getElementById('end-breakdown').innerHTML = html;
   }
 
   function restart() {
     document.getElementById('end-screen')?.classList.add('hidden');
-    revealed = {}; grades = {}; seconds = 0; timerRunning = true;
-    document.querySelectorAll('.qcard-solution').forEach(s => s.classList.add('hidden'));
-    document.querySelectorAll('.btn-reveal').forEach(b => b.classList.remove('hidden'));
+    revealed = {}; revealedParts = {}; grades = {}; seconds = 0;
+    timerPaused = false;
+    const pauseBtn = document.getElementById('btn-timer-pause');
+    if (pauseBtn) pauseBtn.textContent = '⏸';
+
+    document.querySelectorAll('.qpart-solution, .qpart-solution').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('[id^="sol-"]').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('.btn-reveal-part').forEach(b => b.classList.remove('hidden'));
     document.querySelectorAll('.grade-bar').forEach(b => b.classList.add('hidden'));
     document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.answer-input').forEach(ta => ta.value = '');
     document.querySelectorAll('.pdot').forEach(d => {
-      d.classList.remove('pdot-correct', 'pdot-partial', 'pdot-incorrect', 'pdot-answered');
+      d.classList.remove('pdot-correct', 'pdot-partial', 'pdot-incorrect', 'pdot-current');
     });
-    timerInterval = setInterval(() => {
-      if (timerRunning) { seconds++; updateTimerDisplay(); }
-    }, 1000);
-    currentPart = 0;
+
+    startTimer();
+    updateTimerDisplay();
     showSlide(0);
   }
 
+  // ── Keyboard ───────────────────────────────────────────────────────────────
+  function onKey(e) {
+    if (document.activeElement.tagName === 'TEXTAREA' ||
+        document.activeElement.tagName === 'INPUT' ||
+        document.activeElement.tagName === 'SELECT') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); prev(); }
+    if (e.key === ' ')  { e.preventDefault(); reveal(current); }
+    if (e.key === '1')  grade(current, 'correct');
+    if (e.key === '2')  grade(current, 'partial');
+    if (e.key === '3')  grade(current, 'incorrect');
+    if (e.key === 'c' || e.key === 'C') toggleTools();
+    if (e.key === 'Escape') {
+      closeTimerSettings();
+      document.getElementById('end-screen')?.classList.add('hidden');
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  function init() {
+    // Restore grades from existing progress
+    if (cfg.existing && cfg.existing.answers) {
+      cfg.existing.answers.forEach(a => {
+        if (!a.questionId || !a.selfGrade) return;
+        const idx = cfg.qIds.findIndex(id => String(id) === String(a.questionId));
+        if (idx >= 0) grades[idx] = a.selfGrade;
+      });
+    }
+
+    restoreAnswers();
+
+    // Apply saved grades to dots
+    for (let i = 0; i < total; i++) {
+      if (grades[i]) updateDot(i);
+    }
+
+    // Init tools panel — open by default
+    initDesmos();
+    initColumnResizer();
+    initRowResizer();
+
+    // Start showing from question 0
+    showSlide(0);
+    updateNavButtons();
+
+    // Start timer
+    startTimer();
+    updateTimerDisplay();
+
+    // Auto-save every 30s
+    setInterval(autoSave, 30000);
+
+    // Keyboard
+    document.addEventListener('keydown', onKey);
+
+    // Auto-save note on notepad changes
+    const notepad = document.getElementById('ps-notepad');
+    if (notepad) {
+      notepad.addEventListener('input', () => {
+        try { localStorage.setItem(noteKey(current), notepad.value); } catch (_) {}
+      });
+    }
+  }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
   return {
-    init, go, prev, next, reveal, grade,
-    toggleCalc, expandCalc, collapseCalc,
+    init,
+    go, prev, next,
+    reveal, revealPart,
+    grade,
+    toggleTools,
+    toggleTimer,
+    openTimerSettings, closeTimerSettings, applyTimerSettings,
+    clearNote,
     finish, restart
   };
 })();

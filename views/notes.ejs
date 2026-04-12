@@ -1,23 +1,38 @@
-<%- include('partials/head', { title: 'Notes' }) %>
+<%- include('partials/head', { title: 'Notes — ' + course.title }) %>
 <%- include('partials/nav') %>
 
 <main class="container notes-page">
 
   <div class="breadcrumb">
-    <a href="/courses">courses</a> / <a href="/courses/<%= course.slug %>"><%= course.title %></a> / <span>notes</span>
+    <a href="/courses">courses</a> /
+    <a href="/courses/<%= course.slug %>"><%= course.title %></a> /
+    <span>notes</span>
   </div>
 
   <div class="page-header">
     <div>
-      <h1>your notes</h1>
-      <p class="subtitle"><%= course.title %> — all problems</p>
+      <h1>notes</h1>
+      <p class="subtitle"><%= course.title %></p>
     </div>
     <div class="notes-filter">
-      <button class="notes-filter-btn active" data-filter="all" onclick="filterNotes('all')">all</button>
-      <button class="notes-filter-btn" data-filter="has-notes" onclick="filterNotes('has-notes')">with notes</button>
-      <button class="notes-filter-btn" data-filter="correct" onclick="filterNotes('correct')">correct</button>
-      <button class="notes-filter-btn" data-filter="incorrect" onclick="filterNotes('incorrect')">incorrect</button>
+      <button class="notes-filter-btn active" data-filter="all"       onclick="filterNotes('all')">all</button>
+      <button class="notes-filter-btn"         data-filter="has-notes" onclick="filterNotes('has-notes')">with notes</button>
+      <button class="notes-filter-btn"         data-filter="correct"   onclick="filterNotes('correct')">correct</button>
+      <button class="notes-filter-btn"         data-filter="incorrect" onclick="filterNotes('incorrect')">missed</button>
     </div>
+  </div>
+
+  <!-- Course-level notes (formula sheets, general notes) -->
+  <div class="course-notes-section fade-in" id="course-notes-section">
+    <div class="course-notes-header">
+      <span>course notes &amp; formula sheet</span>
+      <span style="font-size:0.65rem;color:var(--text-muted)">auto-saved</span>
+    </div>
+    <textarea
+      class="course-notes-area"
+      id="course-notes"
+      placeholder="general notes, key formulas, important constants, cheat sheet...&#10;&#10;this stays at the top of every notes session."
+      data-key="course-notes-<%= course.slug %>"></textarea>
   </div>
 
   <% if (allQuestions.length === 0) { %>
@@ -26,30 +41,47 @@
     </div>
   <% } else { %>
 
-    <!-- Group by unit -->
     <%
+    // Group by unit
     const byUnit = {};
     allQuestions.forEach(q => {
-      if (!byUnit[q.unitTitle]) byUnit[q.unitTitle] = [];
-      byUnit[q.unitTitle].push(q);
+      const key = q.unitIndex + '::' + q.unitTitle;
+      if (!byUnit[key]) byUnit[key] = { title: q.unitTitle, index: q.unitIndex, questions: [] };
+      byUnit[key].questions.push(q);
     });
     %>
 
-    <% Object.entries(byUnit).forEach(([unitTitle, questions]) => { %>
+    <% Object.values(byUnit).forEach(unit => { %>
     <div class="notes-unit-section fade-in">
-      <div class="notes-unit-header"><%= unitTitle %></div>
-      <div class="notes-grid" id="notes-grid">
-        <% questions.forEach((q, i) => { %>
+      <div class="notes-unit-header">
+        Unit <%= unit.index + 1 %> — <%= unit.title %>
+      </div>
+
+      <!-- Per-unit formula sheet -->
+      <div class="formula-sheet-wrap">
+        <div class="formula-sheet-header">
+          <span class="formula-sheet-label">unit formula sheet</span>
+          <span class="formula-sheet-hint">type formulas, definitions, key equations</span>
+        </div>
+        <textarea
+          class="formula-sheet-textarea"
+          placeholder="formulas, theorems, key equations for this unit..."
+          data-key="formula-<%= course.slug %>-<%= unit.index %>"></textarea>
+      </div>
+
+      <!-- Question notes grid -->
+      <div class="notes-grid">
+        <% unit.questions.forEach((q, i) => { %>
         <a href="<%= q.href %>"
            class="note-card grade-<%= q.selfGrade || 'none' %>"
            data-qid="<%= q.qId %>"
            data-grade="<%= q.selfGrade || 'none' %>"
-           style="animation-delay: <%= i * 0.03 %>s">
+           data-note-key="note-<%= q.qId %>"
+           style="animation-delay: <%= i * 0.02 %>s">
 
-          <!-- Canvas thumbnail -->
-          <div class="note-canvas-wrap">
-            <canvas class="note-canvas" data-qid="<%= q.qId %>" width="280" height="160"></canvas>
-            <div class="note-canvas-empty">no notes yet</div>
+          <!-- Note text preview (filled by JS from localStorage) -->
+          <div class="note-text-wrap" id="note-preview-<%= q.qId %>">
+            <div class="note-no-content">no notes yet</div>
           </div>
 
           <!-- Question info -->
@@ -61,7 +93,7 @@
               <span class="note-grade note-grade-<%= q.selfGrade %>"><%= q.selfGrade %></span>
               <% } %>
             </div>
-            <p class="note-q-text"><%= q.text ? q.text.substring(0, 100) + (q.text.length > 100 ? '...' : '') : '' %></p>
+            <p class="note-q-text"><%= q.text ? q.text.substring(0, 90) + (q.text.length > 90 ? '…' : '') : '' %></p>
           </div>
         </a>
         <% }) %>
@@ -72,26 +104,49 @@
   <% } %>
 </main>
 
-<script src="/js/whiteboard.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  // Render all canvas thumbnails from localStorage
-  document.querySelectorAll('.note-canvas').forEach(canvas => {
-    const qId = canvas.dataset.qid;
-    if (!qId) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width  = canvas.offsetWidth  * dpr || 280 * dpr;
-    canvas.height = canvas.offsetHeight * dpr || 160 * dpr;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    const hasContent = WB.renderThumbnail(canvas, qId);
-    if (hasContent) {
-      canvas.classList.add('has-content');
-      canvas.closest('.note-card').classList.add('has-notes');
-      canvas.closest('.note-card').querySelector('.note-canvas-empty').style.display = 'none';
+// ── Load & save notes from localStorage ──────────────────────────────────────
+
+function loadSavedNotes() {
+  // Course-level notes
+  const courseArea = document.getElementById('course-notes');
+  if (courseArea) {
+    const saved = localStorage.getItem(courseArea.dataset.key) || '';
+    courseArea.value = saved;
+    courseArea.addEventListener('input', () => {
+      localStorage.setItem(courseArea.dataset.key, courseArea.value);
+    });
+  }
+
+  // Formula sheets
+  document.querySelectorAll('.formula-sheet-textarea').forEach(ta => {
+    const key = ta.dataset.key;
+    if (!key) return;
+    ta.value = localStorage.getItem(key) || '';
+    ta.addEventListener('input', () => {
+      localStorage.setItem(key, ta.value);
+    });
+  });
+
+  // Question note previews
+  document.querySelectorAll('.note-card[data-note-key]').forEach(card => {
+    const key = card.dataset.noteKey;
+    const note = localStorage.getItem(key) || '';
+    const preview = card.querySelector('.note-text-wrap');
+    if (!preview) return;
+
+    if (note.trim()) {
+      preview.innerHTML = '';
+      const p = document.createElement('p');
+      p.className = 'note-text-preview';
+      p.textContent = note.length > 200 ? note.substring(0, 200) + '…' : note;
+      preview.appendChild(p);
+      card.classList.add('has-notes');
     }
   });
-});
+}
+
+// ── Filter ───────────────────────────────────────────────────────────────────
 
 function filterNotes(filter) {
   document.querySelectorAll('.notes-filter-btn').forEach(b => {
@@ -105,6 +160,10 @@ function filterNotes(filter) {
     card.style.display = show ? '' : 'none';
   });
 }
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', loadSavedNotes);
 </script>
 
 <%- include('partials/foot') %>

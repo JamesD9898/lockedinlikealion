@@ -3,33 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title><%= problemSet.title %> — locked in like a lion</title>
+  <title><%= problemSet.title %> — locked in</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
-<body class="ps-body ps-immersive">
+<body class="ps-body">
 
-<header class="ps-hud">
+<!-- ── Top bar ── -->
+<header class="ps-topbar">
   <a href="<%= typeof practiceMode !== 'undefined' && practiceMode
     ? '/courses/' + course.slug
-    : '/courses/' + course.slug + '/unit/' + unitIndex %>" class="ps-hud-back" title="back">←</a>
-  <div class="ps-hud-center">
-    <span class="ps-hud-set"><span class="set-type-badge <%= problemSet.type %>"><%= problemSet.type === 'exam' ? 'exam' : 'set' %></span> <%= problemSet.title %></span>
-    <span class="ps-hud-pos" id="ps-hud-pos">—</span>
+    : '/courses/' + course.slug + '/unit/' + unitIndex %>"
+    class="ps-back">
+    <span>←</span>
+    <span class="ps-back-label"><%= course.title %></span>
+  </a>
+  <div class="ps-topbar-title">
+    <span class="set-type-badge <%= problemSet.type %>"><%= problemSet.type === 'exam' ? 'exam' : 'set' %></span>
+    <span class="ps-set-name"><%= problemSet.title %></span>
+    <span class="ps-hud-pos" id="ps-hud-pos"></span>
   </div>
-  <div class="ps-hud-right">
-    <span id="timer-display" class="ps-hud-time">00:00</span>
-    <button type="button" class="ps-hud-btn" id="btn-toggle-calc" onclick="PSApp.toggleCalc()">calc</button>
+  <div class="ps-topbar-right">
+    <div class="ps-timer-group">
+      <button class="ps-timer-settings-btn" id="btn-timer-settings" onclick="PSApp.openTimerSettings()" title="timer settings">⏱</button>
+      <span id="timer-display" class="ps-timer">00:00</span>
+      <% if (problemSet.timeLimit) { %><span class="ps-timer-of">/<%= problemSet.timeLimit %>:00</span><% } %>
+      <button class="ps-timer-pause-btn" id="btn-timer-pause" onclick="PSApp.toggleTimer()" title="pause timer">⏸</button>
+    </div>
+    <button class="ps-calc-btn" id="btn-calc" onclick="PSApp.toggleTools()" title="toggle tools panel (C)">∑ calc</button>
   </div>
 </header>
 
-<main class="ps-immersive-main" id="ps-immersive-main">
+<!-- ── Main split ── -->
+<main class="ps-main" id="ps-main">
 
-  <div class="ps-main-workspace" id="ps-main-workspace">
-  <div class="ps-problem-strip" id="ps-problem-strip">
+  <!-- Question column -->
+  <div class="ps-question-col" id="ps-question-col">
+    <% if (typeof practiceMode !== 'undefined' && practiceMode) { %>
+    <div class="practice-banner">practice — questions from selected units</div>
+    <% } %>
+
     <% problemSet.questions.forEach((q, qi) => { %>
-    <div class="question-slide ps-q-slide" data-index="<%= qi %>" id="slide-<%= qi %>">
-      <div class="question-card ps-q-card ps-q-card-compact">
+    <div class="question-slide" id="slide-<%= qi %>" data-index="<%= qi %>">
+
+      <!-- Question card -->
+      <div class="question-card">
         <div class="qcard-header">
           <span class="qcard-num">Question <%= q.number || (qi + 1) %></span>
           <% if (q.points) { %><span class="qcard-pts"><%= q.points %> pts</span><% } %>
@@ -40,94 +58,115 @@
           <img src="<%= q.imageUrl %>" alt="Figure" class="qcard-image">
         </div>
         <% } %>
+
         <div class="qcard-answer-area">
           <% if (q.parts && q.parts.length > 0) { %>
+            <!-- Multi-part question: each part has its own reveal -->
             <% q.parts.forEach((part, pi) => { %>
-            <div class="qpart" data-part-index="<%= pi %>">
+            <div class="qpart" id="qpart-<%= qi %>-<%= pi %>" data-part-index="<%= pi %>">
               <div class="qpart-left">
                 <span class="qpart-label"><%= part.label || '(' + String.fromCharCode(97 + pi) + ')' %></span>
               </div>
               <div class="qpart-right">
-                <div class="qpart-text katex-content"><%= part.text %></div>
+                <% if (part.text) { %><div class="qpart-text katex-content"><%= part.text %></div><% } %>
                 <% if (part.points) { %><span class="qpart-pts"><%= part.points %> pts</span><% } %>
-                <textarea class="answer-input" data-qid="<%= q._id %>" data-part="<%= pi %>" placeholder="answer…" rows="2"></textarea>
+                <textarea class="answer-input" data-qid="<%= q._id %>" data-part="<%= pi %>" placeholder="your answer…" rows="2"></textarea>
+                <div class="qpart-reveal-row">
+                  <button class="btn-reveal-part" id="reveal-<%= qi %>-<%= pi %>" onclick="PSApp.revealPart(<%= qi %>, <%= pi %>)">reveal <%= part.label || '(' + String.fromCharCode(97 + pi) + ')' %></button>
+                </div>
+                <div class="qpart-solution hidden" id="sol-<%= qi %>-<%= pi %>">
+                  <div class="ps-sol-bar">
+                    <span class="ps-sol-label">answer</span>
+                  </div>
+                  <div class="ps-sol-text katex-content"><%= part.answer || '' %></div>
+                </div>
               </div>
             </div>
             <% }) %>
           <% } else { %>
-            <textarea class="answer-input single-answer" data-qid="<%= q._id %>" placeholder="answer…" rows="2"></textarea>
-          <% } %>
-        </div>
-        <div class="qcard-solution hidden" id="sol-<%= qi %>">
-          <div class="solution-divider"></div>
-          <div class="solution-label">Solution</div>
-          <% if (q.parts && q.parts.length > 0) { %>
-            <% q.parts.forEach((part, pi) => { %>
-            <div class="solution-part">
-              <span class="qpart-label solution-part-label"><%= part.label || '(' + String.fromCharCode(97 + pi) + ')' %></span>
-              <div class="solution-text katex-content"><%= part.answer || '' %></div>
+            <!-- Single-answer question -->
+            <div class="qpart-single">
+              <textarea class="answer-input" data-qid="<%= q._id %>" placeholder="your answer…" rows="3"></textarea>
+              <div class="qpart-reveal-row">
+                <button class="btn-reveal-part" id="reveal-<%= qi %>" onclick="PSApp.reveal(<%= qi %>)">reveal answer</button>
+              </div>
+              <div class="qpart-solution hidden" id="sol-<%= qi %>">
+                <div class="ps-sol-bar">
+                  <span class="ps-sol-label">answer</span>
+                </div>
+                <div class="ps-sol-text katex-content"><%= q.answer || '' %></div>
+              </div>
             </div>
-            <% }) %>
-          <% } else { %>
-            <div class="solution-text katex-content"><%= q.answer || '' %></div>
           <% } %>
         </div>
       </div>
+
+      <!-- Grade bar -->
       <div class="q-action-bar ps-q-actions">
-        <button class="btn-reveal" id="reveal-btn-<%= qi %>" onclick="PSApp.reveal(<%= qi %>)">reveal answer</button>
         <div class="grade-bar hidden" id="grade-bar-<%= qi %>">
-          <span class="grade-label">grade</span>
-          <button class="grade-btn" data-grade="correct" onclick="PSApp.grade(<%= qi %>, 'correct')">ok</button>
-          <button class="grade-btn" data-grade="partial" onclick="PSApp.grade(<%= qi %>, 'partial')">partial</button>
-          <button class="grade-btn" data-grade="incorrect" onclick="PSApp.grade(<%= qi %>, 'incorrect')">miss</button>
+          <span class="grade-label">how'd you do?</span>
+          <button class="grade-btn" data-grade="correct"   onclick="PSApp.grade(<%= qi %>, 'correct')">got it</button>
+          <button class="grade-btn" data-grade="partial"   onclick="PSApp.grade(<%= qi %>, 'partial')">partial</button>
+          <button class="grade-btn" data-grade="incorrect" onclick="PSApp.grade(<%= qi %>, 'incorrect')">missed it</button>
         </div>
       </div>
     </div>
     <% }) %>
   </div>
 
-  <div class="ps-canvas-wrap" id="ps-canvas-wrap">
-    <div class="ps-canvas-shell" id="ps-canvas-shell">
-      <canvas id="wb-main-canvas" aria-label="scratch paper"></canvas>
-    </div>
-    <div class="wbc-toolbar wb-toolbar-floating" id="wb-main-toolbar">
-        <button class="wbc-tool active" data-tool="pen" title="pen">pen</button>
-        <button class="wbc-tool" data-tool="highlighter" title="highlighter">hl</button>
-        <button class="wbc-tool" data-tool="strike" title="strike">x</button>
-        <button class="wbc-tool" data-tool="eraser" title="eraser">erase</button>
-        <div class="wbc-divider"></div>
-        <button class="wbc-swatch active" data-color="#1c1c1c" style="background:#1c1c1c" title="ink"></button>
-        <button class="wbc-swatch" data-color="#c8a46e" style="background:#c8a46e"></button>
-        <button class="wbc-swatch" data-color="#166534" style="background:#166534"></button>
-        <button class="wbc-swatch" data-color="#b91c1c" style="background:#b91c1c"></button>
-        <button class="wbc-swatch" data-color="#1d4ed8" style="background:#1d4ed8"></button>
-        <div class="wbc-divider"></div>
-        <button class="wbc-size" data-w="1">·</button>
-        <button class="wbc-size active" data-w="2">–</button>
-        <button class="wbc-size" data-w="4">━</button>
-        <div class="wbc-divider"></div>
-        <button class="wbc-action" data-wb-finger title="allow finger / mouse">touch</button>
-        <button class="wbc-action" data-wb-undo title="undo">undo</button>
-        <button class="wbc-action" data-wb-clear title="clear">clear</button>
-    </div>
-  </div>
-  </div>
+  <!-- Column resize handle -->
+  <div class="ps-col-resizer" id="ps-col-resizer"></div>
 
-  <aside class="ps-calc-drawer" id="ps-calc-drawer" aria-hidden="true">
-    <div class="ps-calc-resize-handle" id="ps-calc-resize-handle" title="drag to resize"></div>
-    <div class="ps-calc-drawer-inner">
-      <div class="ps-calc-head">
-        <span>calculator</span>
-        <button type="button" class="ps-calc-expand" onclick="PSApp.expandCalc()" title="fullscreen">expand</button>
-        <button type="button" class="ps-calc-close" onclick="PSApp.toggleCalc()" title="close">×</button>
+  <!-- Tools column: notepad + desmos -->
+  <div class="ps-tools-col" id="ps-tools-col">
+
+    <!-- Notepad section -->
+    <div class="ps-notepad-wrap" id="ps-notepad-wrap">
+      <div class="tool-block-header">
+        <span class="tool-block-title">notes</span>
+        <div class="tool-block-actions">
+          <button onclick="PSApp.clearNote()" title="clear this question's note">clear</button>
+        </div>
       </div>
-      <div class="ps-calc-body" id="panel-calc">
+      <textarea
+        class="ps-notepad-area"
+        id="ps-notepad"
+        placeholder="type notes, work through steps, jot formulas...&#10;&#10;auto-saved per question"></textarea>
+    </div>
+
+    <!-- Row resize handle (drag to give more space to calc or notepad) -->
+    <div class="ps-tools-row-divider" id="ps-tools-row-divider" title="drag to resize"></div>
+
+    <!-- Desmos calc section -->
+    <div class="ps-calc-panel" id="ps-calc-panel">
+      <div class="calc-panel-body">
         <div id="desmos-container" class="desmos-host"></div>
       </div>
     </div>
-  </aside>
+
+  </div>
 </main>
 
+<!-- ── Bottom nav ── -->
+<footer class="ps-footer">
+  <div class="ps-progress-dots" id="ps-progress-dots">
+    <% problemSet.questions.forEach((q, qi) => { %>
+    <button class="pdot" id="pdot-<%= qi %>" data-index="<%= qi %>"
+      onclick="PSApp.go(<%= qi %>)"
+      title="Q<%= q.number || (qi + 1) %>"></button>
+    <% }) %>
+  </div>
+  <div class="ps-nav-center">
+    <button class="ps-nav-btn" id="btn-prev" onclick="PSApp.prev()">←</button>
+    <span class="ps-nav-pos" id="nav-pos">1 / <%= problemSet.questions.length %></span>
+    <button class="ps-nav-btn" id="btn-next" onclick="PSApp.next()">→</button>
+  </div>
+  <div class="ps-footer-right">
+    <button class="btn btn-small btn-ghost" onclick="PSApp.finish()">finish</button>
+  </div>
+</footer>
+
+<!-- ── End screen ── -->
 <div class="ps-end-screen hidden" id="end-screen">
   <div class="end-card">
     <div class="end-title">done.</div>
@@ -142,43 +181,47 @@
   </div>
 </div>
 
-<footer class="ps-footer ps-immersive-footer">
-  <div class="ps-progress-dots" id="progress-dots">
-    <% problemSet.questions.forEach((q, qi) => { %>
-    <button class="pdot" data-index="<%= qi %>" id="pdot-<%= qi %>" onclick="PSApp.go(<%= qi %>)" title="Q<%= qi + 1 %>"></button>
-    <% }) %>
-  </div>
-  <div class="ps-nav-center">
-    <button type="button" class="ps-nav-btn" id="btn-prev" onclick="PSApp.prev()" title="previous part or question">←</button>
-    <span class="ps-nav-pos" id="nav-pos">1 / <%= problemSet.questions.length %></span>
-    <button type="button" class="ps-nav-btn" id="btn-next" onclick="PSApp.next()" title="next part or question">→</button>
-  </div>
-  <div class="ps-footer-right">
-    <button class="btn btn-small btn-ghost" onclick="PSApp.finish()">finish</button>
-  </div>
-</footer>
-
-<div class="tool-modal hidden" id="calc-modal">
-  <div class="tool-modal-inner">
-    <div class="tool-modal-header">
-      <span>calculator</span>
-      <button type="button" onclick="PSApp.collapseCalc()">close</button>
+<!-- ── Timer settings modal ── -->
+<div class="ps-modal-overlay hidden" id="timer-modal">
+  <div class="ps-modal">
+    <div class="ps-modal-header">
+      <span>timer settings</span>
+      <button onclick="PSApp.closeTimerSettings()">×</button>
     </div>
-    <div id="desmos-modal-container" class="desmos-modal-host"></div>
+    <div class="ps-modal-body">
+      <label class="ps-modal-row">
+        <span>mode</span>
+        <select id="timer-mode-select">
+          <option value="up">count up</option>
+          <option value="down">countdown</option>
+        </select>
+      </label>
+      <label class="ps-modal-row">
+        <span>time limit (min)</span>
+        <input type="number" id="timer-limit-input" min="1" max="300" value="<%= problemSet.timeLimit || 45 %>">
+      </label>
+      <label class="ps-modal-row">
+        <input type="checkbox" id="timer-reset-cb">
+        <span>reset timer now</span>
+      </label>
+    </div>
+    <div class="ps-modal-footer">
+      <button class="btn btn-small btn-ghost" onclick="PSApp.closeTimerSettings()">cancel</button>
+      <button class="btn btn-small" onclick="PSApp.applyTimerSettings()">apply</button>
+    </div>
   </div>
 </div>
 
 <script>
 window.__PS = {
-  courseId:  '<%= course._id %>',
-  psId:      '<%= problemSet._id %>',
-  timeLimit: <%= problemSet.timeLimit || 'null' %>,
-  totalQ:    <%= problemSet.questions.length %>,
-  qIds:      [<%- problemSet.questions.map(q => JSON.stringify(String(q._id))).join(',') %>],
-  qTexts:    [<%- problemSet.questions.map(q => JSON.stringify((q.text || '').substring(0, 120).replace(/\n/g, ' '))).join(',') %>],
-  qNums:     [<%- problemSet.questions.map((q, i) => JSON.stringify(String(q.number || i + 1))).join(',') %>],
+  courseId:    '<%= course._id %>',
+  psId:        '<%= problemSet._id %>',
+  timeLimit:   <%= problemSet.timeLimit || 'null' %>,
+  totalQ:      <%= problemSet.questions.length %>,
+  qIds:        [<%- problemSet.questions.map(q => JSON.stringify(String(q._id))).join(',') %>],
+  qNums:       [<%- problemSet.questions.map((q, i) => JSON.stringify(String(q.number || i + 1))).join(',') %>],
   partsLayout: <%- JSON.stringify(problemSet.questions.map(q => (q.parts && q.parts.length) ? q.parts.length : 0)) %>,
-  existing:  <%- JSON.stringify(progress ? { timeSpent: progress.timeSpent || 0, answers: progress.answers || [] } : null) %>
+  existing:    <%- JSON.stringify(progress ? { timeSpent: progress.timeSpent || 0, answers: progress.answers || [] } : null) %>
 };
 </script>
 
@@ -187,15 +230,13 @@ window.__PS = {
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
   onload="renderMathInElement(document.body, {
     delimiters: [
-      {left:'$$',right:'$$',display:true},
-      {left:'$',right:'$',display:false},
-      {left:'\\\\(',right:'\\\\)',display:false},
-      {left:'\\\\[',right:'\\\\]',display:true}
+      {left:'$$', right:'$$', display:true},
+      {left:'$',  right:'$',  display:false},
+      {left:'\\\\(', right:'\\\\)', display:false},
+      {left:'\\\\[', right:'\\\\]', display:true}
     ],
     throwOnError: false
   })"></script>
-<script src="/js/whiteboard.js"></script>
 <script src="/js/problem-set.js"></script>
-
 </body>
 </html>
